@@ -1,0 +1,13 @@
+#!/bin/bash
+
+mkdir -p "${WEBHOOKS_COLLECTION_PATH}/validating"
+for resource in $(/usr/bin/oc get validatingwebhookconfiguration -o custom-columns=NAME:.metadata.name --no-headers); do
+  /usr/bin/oc get validatingwebhookconfiguration "${resource}" -o yaml > "${WEBHOOKS_COLLECTION_PATH}/validating/${resource}.yaml"
+done
+
+mkdir -p "${WEBHOOKS_COLLECTION_PATH}/mutating"
+for resource in $(/usr/bin/oc get mutatingwebhookconfiguration -o custom-columns=NAME:.metadata.name --no-headers); do
+  /usr/bin/oc get mutatingwebhookconfiguration "${resource}" -o yaml | grep -vi cabundle > "${WEBHOOKS_COLLECTION_PATH}/mutating/${resource}.yaml"
+done
+
+exit 0

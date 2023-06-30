@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# load shared functions and data
+DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "${DIR_NAME}/common.sh"
+
+NS="$1"
+if [ -z "$NS" ]; then
+    echo "No namespace passed, using the default one"
+    NS=openstack
+fi
+
+# Only get resources if the namespace exists
+if ! check_namespace "${NS}"; then
+    exit 0
+fi
+
+get_cm() {
+        local service="$1"
+        mkdir -p "$NAMESPACE_PATH"/"$NS"/configmaps
+        CMS=$(/usr/bin/oc -n "$NS" get cm | grep -i "$service" | awk '{print $1}')
+        # shellcheck disable=SC2068
+        for cm in ${CMS[@]}; do
+                echo "Extracting ConfigMap: $cm"
+                /usr/bin/oc -n "$NS" get cm "$cm" --output yaml > "$NAMESPACE_PATH"/"$NS"/configmaps/"$cm".yaml
+        done
+}
+
+for svc in "${OSP_SERVICES[@]}"; do
+    get_cm "$svc"
+done
+
+exit 0

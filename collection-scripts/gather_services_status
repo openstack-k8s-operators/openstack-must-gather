@@ -1,0 +1,39 @@
+#!/bin/bash
+
+DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "${DIR_NAME}/common.sh"
+SERVICES=("openstack")
+
+alias os="/usr/bin/oc -n openstack rsh openstackclient openstack "
+
+get_status() {
+    service="$1"
+    case "${service}" in
+    "openstack") get_openstack_status
+                 ;;
+    "manila") get_manila_status
+              ;;
+    *) exit 0
+    esac
+}
+
+get_openstack_status() {
+        mkdir -p "$BASE_COLLECTION_PATH"/ctlplane
+        ${BASH_ALIASES[os]} endpoint list > "$BASE_COLLECTION_PATH"/ctlplane/endpoints
+        ${BASH_ALIASES[os]} service list > "$BASE_COLLECTION_PATH"/ctlplane/services
+        ${BASH_ALIASES[os]} compute service list > "$BASE_COLLECTION_PATH"/ctlplane/compute_service_list
+        ${BASH_ALIASES[os]} network agent list > "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
+}
+
+get_manila_status() {
+    ${BASH_ALIASES[os]} share service list > "$BASE_COLLECTION_PATH"/manila/service_list
+    ${BASH_ALIASES[os]} share type list > "$BASE_COLLECTION_PATH"/manila/share_types
+    ${BASH_ALIASES[os]} share pool list --detail > "$BASE_COLLECTION_PATH"/manila/pool_list
+}
+
+for svc in "${SERVICES[@]}"; do
+    get_status "$svc"
+done
+
+exit 0
