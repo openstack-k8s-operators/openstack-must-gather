@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# load shared functions and data
+DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "${DIR_NAME}/common.sh"
+
+# Resource list
+resources=()
+
+for i in $(/usr/bin/oc get apiservices --all-namespaces | grep openstack.org | awk '{ print $1 }')
+do
+  resources+=("$i")
+done
+
+for resource in "${resources[@]}"; do
+  mkdir -p "$BASE_COLLECTION_PATH"/apiservices/
+  /usr/bin/oc get apiservice "${resource}" -o yaml > "${BASE_COLLECTION_PATH}/apiservices/${resource}.yaml"
+done
+
+exit 0

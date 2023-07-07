@@ -1,0 +1,37 @@
+#!/bin/bash
+
+DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "${DIR_NAME}/common.sh"
+
+# get apiservices
+/usr/bin/gather_apiservices
+
+# get CRDs
+/usr/bin/gather_crds
+
+# get CRs
+/usr/bin/gather_crs
+
+# get webhooks
+/usr/bin/gather_webhooks
+
+for NS in "${DEFAULT_NAMESPACES[@]}"; do
+    # get Services Config (CM)
+    /usr/bin/gather_services_cm "$NS"
+    # get subscriptions / installplans / packagemanifests / CSVs
+    /usr/bin/gather_sub "$NS"
+    # get routes, services, jobs, deployments
+    # daemonsets, statefulsets, replicasets,
+    # pods (describe and get logs)
+    /usr/bin/gather_ctlplane_resources "$NS"
+done
+
+# get network related resources (nncp, ipaddresspool, l2advertisement)
+/usr/bin/gather_network
+
+# get SVC status (inspect ctlplane)
+/usr/bin/gather_services_status
+
+# TODO:
+# - Get secrets and mask sensitive data

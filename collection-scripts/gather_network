@@ -1,0 +1,22 @@
+#!/bin/bash
+
+DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "${DIR_NAME}/common.sh"
+
+# get nncp
+mkdir -p "${BASE_COLLECTION_PATH}/network/nncp"
+for iface in $(oc -n "${METALLB_NAMESPACE}" get nncp -o custom-columns=":metadata.name"); do
+    /usr/bin/oc -n "${METALLB_NAMESPACE}" get nncp "$iface" -o yaml > "${BASE_COLLECTION_PATH}/network/nncp/$iface.log";
+done
+
+# get ipaddresspools
+mkdir -p "${BASE_COLLECTION_PATH}/network/ipaddresspools"
+for ipadd in $(oc -n "${METALLB_NAMESPACE}" get ipaddresspools -o custom-columns=":metadata.name"); do
+    /usr/bin/oc -n "${METALLB_NAMESPACE}" get ipaddresspools "$ipadd" -o yaml > "${BASE_COLLECTION_PATH}/network/ipaddresspools/$ipadd.log";
+done
+
+# get l2advertisement
+/usr/bin/oc -n "${METALLB_NAMESPACE}" get l2advertisement -o yaml >> "${BASE_COLLECTION_PATH}/network/l2advertisement.log"
+
+exit 0
