@@ -1,0 +1,59 @@
+name: OpenStack must gather image builder
+
+on:
+  push:
+    branches:
+      - '*'
+
+env:
+  imageregistry: 'quay.io'
+  imagenamespace: ${{ secrets.IMAGENAMESPACE || secrets.QUAY_USERNAME }}
+  latesttag: latest
+
+jobs:
+
+  check-secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets are set
+        id: have-secrets
+        if: "${{ env.imagenamespace != '' }}"
+        run: echo "ok=true" >> $GITHUB_OUTPUT
+    outputs:
+      have-secrets: ${{ steps.have-secrets.outputs.ok }}
+
+  build-openstack-must-gather:
+    name: Build openstack-must-gather image using buildah
+    runs-on: ubuntu-latest
+    needs: [check-secrets]
+    if: needs.check-secrets.outputs.have-secrets == 'true'
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Get branch name
+      id: branch-name
+      uses: tj-actions/branch-names@v5
+
+    - name: Set latest tag for non main branch
+      if: "${{ steps.branch-name.outputs.current_branch != 'main' }}"
+      run: |
+        echo "latesttag=${{ steps.branch-name.outputs.current_branch }}-latest" >> $GITHUB_ENV
+
+    - name: Buildah Action
+      id: build-openstack-must-gather
+      uses: redhat-actions/buildah-build@v2
+      with:
+        image: openstack-must-gather
+        tags: ${{ env.latesttag }} ${{ github.sha }}
+        containerfiles: |
+          ./Dockerfile
+
+    - name: Push openstack-must-gather image To ${{ env.imageregistry }}
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build-openstack-must-gather.outputs.image }}
+        tags: ${{ steps.build-openstack-must-gather.outputs.tags }}
+        registry: ${{ env.imageregistry }}/${{ env.imagenamespace }}
+        username: ${{ secrets.QUAY_USERNAME }}
+        password: ${{ secrets.QUAY_PASSWORD }}
