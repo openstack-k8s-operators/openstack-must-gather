@@ -6,6 +6,8 @@ declare -a DEFAULT_NAMESPACES=(
     "openstack-operators"
     "baremetal-operator-system"
     "openshift-machine-api"
+    "cert-manager"
+    "openshift-nmstate"
 )
 export DEFAULT_NAMESPACES
 
