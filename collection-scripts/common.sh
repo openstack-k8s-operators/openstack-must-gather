@@ -35,7 +35,6 @@ declare -a OSP_SERVICES=(
     "keystone"
     "mariadb"
     "glance"
-    "neutron"
     "rabbitmq"
     "manila"
     "cinder"

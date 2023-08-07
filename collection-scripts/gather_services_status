@@ -3,37 +3,71 @@
 DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # shellcheck disable=SC1091
 source "${DIR_NAME}/common.sh"
-SERVICES=("openstack")
 
 alias os="/usr/bin/oc -n openstack rsh openstackclient openstack "
 
+# For each service passed an input, if the associated entry exists,
+# we can call the related function that processes specific service
+# commands
 get_status() {
     service="$1"
+    echo "Gather ctlplane service info: $service"
     case "${service}" in
-    "openstack") get_openstack_status
-                 ;;
-    "manila") get_manila_status
-              ;;
-    *) exit 0
+    "openstack")
+        get_openstack_status
+        ;;
+    "manila")
+        get_manila_status
+        ;;
+    "neutron")
+        get_neutron_status
+        ;;
+    *) ;;
     esac
 }
 
+# Generic OpenStack cltplane gathering -
 get_openstack_status() {
-        mkdir -p "$BASE_COLLECTION_PATH"/ctlplane
-        ${BASH_ALIASES[os]} endpoint list > "$BASE_COLLECTION_PATH"/ctlplane/endpoints
-        ${BASH_ALIASES[os]} service list > "$BASE_COLLECTION_PATH"/ctlplane/services
-        ${BASH_ALIASES[os]} compute service list > "$BASE_COLLECTION_PATH"/ctlplane/compute_service_list
-        ${BASH_ALIASES[os]} network agent list > "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
+    mkdir -p "$BASE_COLLECTION_PATH"/ctlplane
+    ${BASH_ALIASES[os]} endpoint list > "$BASE_COLLECTION_PATH"/ctlplane/endpoints
+    ${BASH_ALIASES[os]} service list > "$BASE_COLLECTION_PATH"/ctlplane/services
+    ${BASH_ALIASES[os]} compute service list > "$BASE_COLLECTION_PATH"/ctlplane/compute_service_list
+    ${BASH_ALIASES[os]} network agent list > "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
 }
 
+# Manila service gathering -
 get_manila_status() {
-    ${BASH_ALIASES[os]} share service list > "$BASE_COLLECTION_PATH"/manila/service_list
-    ${BASH_ALIASES[os]} share type list > "$BASE_COLLECTION_PATH"/manila/share_types
-    ${BASH_ALIASES[os]} share pool list --detail > "$BASE_COLLECTION_PATH"/manila/pool_list
+    local MANILA_PATH="$BASE_COLLECTION_PATH/ctlplane/manila"
+    mkdir -p "$MANILA_PATH"
+    ${BASH_ALIASES[os]} share service list > "$MANILA_PATH"/service_list
+    ${BASH_ALIASES[os]} share type list > "$MANILA_PATH"/share_types
+    ${BASH_ALIASES[os]} share pool list --detail > "$MANILA_PATH"/pool_list
 }
 
-for svc in "${SERVICES[@]}"; do
-    get_status "$svc"
+# Neutron service gathering -
+get_neutron_status() {
+    local NEUTRON_PATH="$BASE_COLLECTION_PATH/ctlplane/neutron"
+    mkdir -p "$NEUTRON_PATH"
+    ${BASH_ALIASES[os]} subnet list > "$NEUTRON_PATH"/subnet_list
+    ${BASH_ALIASES[os]} port list > "$NEUTRON_PATH"/port_list
+    ${BASH_ALIASES[os]} router list > "$NEUTRON_PATH"/router_list
+    ${BASH_ALIASES[os]} network agent list > "$NEUTRON_PATH"/agent_list
+    ${BASH_ALIASES[os]} network list > "$NEUTRON_PATH"/network_list
+    ${BASH_ALIASES[os]} extension list > "$NEUTRON_PATH"/extension_list
+    ${BASH_ALIASES[os]} floating ip list > "$NEUTRON_PATH"/floating_ip_list
+    ${BASH_ALIASES[os]} security group list > "$NEUTRON_PATH"/security_group_list
+}
+
+# first we gather generic status of the openstack ctlplane
+# then we process the existing services (if an associated
+# function has been defined)
+get_status "openstack"
+# get the list of existing ctlplane services (once) and
+# filter the whole list processing only services with an
+# associated function
+services=$(${BASH_ALIASES[os]} service list -c Name -f value)
+for svc in "${OSP_SERVICES[@]}"; do
+    [[ "${services[*]}" =~ ${svc} ]] && get_status "$svc"
 done
 
 exit 0
