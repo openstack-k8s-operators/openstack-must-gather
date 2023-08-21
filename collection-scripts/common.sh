@@ -77,6 +77,6 @@ function get_resources {
     mkdir -p "${NAMESPACE_PATH}"/"$NS"/"$resource"
     for res in $(oc -n "$NS" get "$resource" -o custom-columns=":metadata.name"); do
         echo "Dump $resource: $res";
-        /usr/bin/oc -n "$NS" get "$resource" "$res" > "${NAMESPACE_PATH}"/"$NS"/"$resource"/"$res".yaml
+        /usr/bin/oc -n "$NS" get "$resource" "$res" -o yaml > "${NAMESPACE_PATH}"/"$NS"/"$resource"/"$res".yaml
     done
 }

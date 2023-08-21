@@ -1,0 +1,4 @@
+# do not commit tests generated files and directories
+pyscripts/.tox
+pyscripts/__pycache__
+pyscripts/.stestr

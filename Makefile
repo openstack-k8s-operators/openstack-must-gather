@@ -11,6 +11,9 @@ build: check-image podman-build podman-push ## Build and push the must-gather im
 check: ## Run sanity check against the script collection
 	shellcheck collection-scripts/*
 
+pytest: ## Run sanity check against python scripts in pydir
+	tox -c pyscripts/tox.ini
+
 podman-build: check-image ## build the must-gather image
 	podman build -t ${IMAGE_REGISTRY}/${MUST_GATHER_IMAGE}:${IMAGE_TAG} .
 

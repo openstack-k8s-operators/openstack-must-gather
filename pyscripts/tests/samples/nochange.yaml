@@ -1,0 +1,10 @@
+apiVersion: v1
+data:
+  01-config.conf: W0RFRkFVTFRdCmVuYWJsZWRfYmFja2VuZHMgPSBkZWZhdWx0X2JhY2tlbmQ6Y2luZGVyCltnbGFuY2Vfc3RvcmVdCmRlZmF1bHRfYmFja2VuZCA9IGRlZmF1bHRfYmFja2VuZApbZGVmYXVsdF9iYWNrZW5kXQpyb290d3JhcF9jb25maWcgPSAvZXRjL2dsYW5jZS9yb290d3JhcC5jb25mCmRlc2NyaXB0aW9uID0gRGVmYXVsdCBjaW5kZXIgYmFja2VuZApjaW5kZXJfY2F0YWxvZ19pbmZvID0gdm9sdW1ldjM6OnB1YmxpY1VSTAo=
+  02-config.conf: ''
+  03-config.conf: ''
+kind: Secret
+metadata:
+  name: service-config-data
+  namespace: openstack
+type: Opaque
