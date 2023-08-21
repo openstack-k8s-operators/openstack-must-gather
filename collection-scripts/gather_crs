@@ -7,7 +7,9 @@ source "${DIR_NAME}/common.sh"
 # Resource list
 resources=()
 
-for i in $(/usr/bin/oc get crd | grep openstack.org | awk '{print $1}')
+# explictly adding rabbit in the grep because it's not part of the openstack
+# umbrella and we rely on the upstream rabbitmq-cluster-operator
+for i in $(/usr/bin/oc get crd | grep -E "(openstack|rabbitmq)\.(org|com)" | awk '{print $1}')
 do
   resources+=("$i")
 done

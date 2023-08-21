@@ -16,6 +16,10 @@ source "${DIR_NAME}/common.sh"
 # get webhooks
 /usr/bin/gather_webhooks
 
+# expand the existing NAMESPACES including kuttl (required for OpenStack CI)
+# if exist so we can gather resources about tests
+expand_ns "kuttl"
+
 for NS in "${DEFAULT_NAMESPACES[@]}"; do
     # get Services Config (CM)
     /usr/bin/gather_services_cm "$NS"

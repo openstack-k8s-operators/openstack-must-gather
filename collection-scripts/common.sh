@@ -51,7 +51,6 @@ declare -a OSP_SERVICES=(
     "ovs"
     "designate"
     "barbican"
-    "rabbitmq"
     "dataplane"
 )
 export OSP_SERVICES
@@ -78,5 +77,17 @@ function get_resources {
     for res in $(oc -n "$NS" get "$resource" -o custom-columns=":metadata.name"); do
         echo "Dump $resource: $res";
         /usr/bin/oc -n "$NS" get "$resource" "$res" -o yaml > "${NAMESPACE_PATH}"/"$NS"/"$resource"/"$res".yaml
+    done
+}
+
+# Generic function to expand the DEFAULT_NAMESPACES array where we need to
+# check resources.
+# e.g. calling <expand_ns "kuttl"> will grow the DEFAULT_NAMESPACES array
+# adding all kuttl NS that can be found
+function expand_ns {
+    local expandkey="$1"
+    [ -z "$1" ] && return
+    for i in $(oc get project -o=custom-columns=NAME:.metadata.name --no-headers | awk -v k="$expandkey" '$0 ~ k {print $1}'); do
+        DEFAULT_NAMESPACES+=("${i}")
     done
 }

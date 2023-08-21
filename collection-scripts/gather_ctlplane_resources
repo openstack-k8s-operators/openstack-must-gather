@@ -21,6 +21,7 @@ mkdir -p "${NAMESPACE_PATH}"/"${NS}"
 /usr/bin/oc -n "${NS}" get all > "${NAMESPACE_PATH}"/"${NS}"/all_resources.log
 /usr/bin/oc -n "${NS}" get events > "${NAMESPACE_PATH}"/"${NS}"/events.log
 /usr/bin/oc -n "${NS}" get pvc > "${NAMESPACE_PATH}"/"${NS}"/pvc.log
+/usr/bin/oc -n "${NS}" get nad -o yaml > "${NAMESPACE_PATH}"/"${NS}"/nad.log
 
 # Get pods and the associated logs
 for p in $(oc -n "$NS" get pods -o custom-columns=":metadata.name"); do
