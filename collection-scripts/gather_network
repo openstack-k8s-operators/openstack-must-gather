@@ -6,8 +6,14 @@ source "${DIR_NAME}/common.sh"
 
 # get nncp
 mkdir -p "${BASE_COLLECTION_PATH}/network/nncp"
-for iface in $(oc -n "${METALLB_NAMESPACE}" get nncp -o custom-columns=":metadata.name"); do
-    /usr/bin/oc -n "${METALLB_NAMESPACE}" get nncp "$iface" -o yaml > "${BASE_COLLECTION_PATH}/network/nncp/$iface.log";
+for iface in $(oc get nncp -o custom-columns=":metadata.name"); do
+    /usr/bin/oc get nncp "$iface" -o yaml > "${BASE_COLLECTION_PATH}/network/nncp/$iface.log";
+done
+
+# get nnce
+mkdir -p "${BASE_COLLECTION_PATH}/network/nnce"
+for iface in $(oc get nnce -o custom-columns=":metadata.name"); do
+    /usr/bin/oc get nnce "$iface" -o yaml > "${BASE_COLLECTION_PATH}/network/nnce/$iface.log";
 done
 
 # get ipaddresspools
