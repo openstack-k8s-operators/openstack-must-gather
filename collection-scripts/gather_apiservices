@@ -8,7 +8,8 @@ source "${DIR_NAME}/common.sh"
 # Resource list
 resources=()
 
-for i in $(/usr/bin/oc get apiservices --all-namespaces | grep openstack.org | awk '{ print $1 }')
+# explicitly adding rabbitmq in the grep because we rely on the rabbitmq-cluster-operator
+for i in $(/usr/bin/oc get apiservices --all-namespaces | grep -E "(openstack|rabbitmq)\.(org|com)" | awk '{ print $1 }')
 do
   resources+=("$i")
 done
