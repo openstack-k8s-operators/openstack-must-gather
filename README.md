@@ -34,6 +34,7 @@ The targets for `make` are as follows:
 - `check-image`: Check if the `MUST_GATHER_IMAGE` variable is set
 - `build`: build the image with the supplied name and pushes it
 - `check`: Run sanity check against the script collection
+- `pytest`: Run sanity check and unit tests against the python script collection
 - `podman-build`: builds the must-gather image
 - `podman-push`:  pushes an already-built `must-gather` image
 

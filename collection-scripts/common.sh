@@ -27,6 +27,7 @@ declare resources=(
     "statefulset"
     "buildconfig"
     "jobs"
+    "cronjobs"
 )
 export resources
 
