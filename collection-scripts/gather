@@ -1,40 +1,15 @@
 #!/bin/bash
+#
+# This is the main script that is invoked when we call `oc adm must-gather`,
+# and it is called directly regardless of the ENTRYPOINT in the Dockerfile
+#
+# This file is necessary to pipe the output of the must-gather process to the
+# output directory.
 
-DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
-source "${DIR_NAME}/common.sh"
+LOG_DIR="${BASE_COLLECTION_PATH:-/must-gather}"
+LOG="${LOG_DIR}/run.log"
 
-# get apiservices
-/usr/bin/gather_apiservices
+/usr/bin/gather_run 2>&1 | tee "${LOG}"
 
-# get CRDs
-/usr/bin/gather_crds
-
-# get CRs
-/usr/bin/gather_crs
-
-# get webhooks
-/usr/bin/gather_webhooks
-
-# expand the existing NAMESPACES including kuttl (required for OpenStack CI)
-# if exist so we can gather resources about tests
-expand_ns "kuttl"
-
-for NS in "${DEFAULT_NAMESPACES[@]}"; do
-    # get Services Config (CM)
-    /usr/bin/gather_services_cm "$NS"
-    # get Services Secrets
-    /usr/bin/gather_secrets "$NS"
-    # get subscriptions / installplans / packagemanifests / CSVs
-    /usr/bin/gather_sub "$NS"
-    # get routes, services, jobs, deployments
-    # daemonsets, statefulsets, replicasets,
-    # pods (describe and get logs)
-    /usr/bin/gather_ctlplane_resources "$NS"
-done
-
-# get network related resources (nncp, ipaddresspool, l2advertisement)
-/usr/bin/gather_network
-
-# get SVC status (inspect ctlplane)
-/usr/bin/gather_services_status
+# Ensure all files are flushed to disk before we finish and copying begins
+sync
