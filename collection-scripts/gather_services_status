@@ -22,6 +22,9 @@ get_status() {
     "neutron")
         get_neutron_status
         ;;
+    "cinder")
+        get_cinder_status
+        ;;
     *) ;;
     esac
 }
@@ -56,6 +59,19 @@ get_neutron_status() {
     ${BASH_ALIASES[os]} extension list > "$NEUTRON_PATH"/extension_list
     ${BASH_ALIASES[os]} floating ip list > "$NEUTRON_PATH"/floating_ip_list
     ${BASH_ALIASES[os]} security group list > "$NEUTRON_PATH"/security_group_list
+}
+
+# Cinder service gathering - services, vol types, qos, transfers, pools,
+get_cinder_status() {
+    local CINDER_PATH="$BASE_COLLECTION_PATH/ctlplane/cinder"
+    mkdir -p "$CINDER_PATH"
+    ${BASH_ALIASES[os]} volume service list > "$CINDER_PATH"/service_list
+    ${BASH_ALIASES[os]} volume type list --long > "$CINDER_PATH"/type_list
+    ${BASH_ALIASES[os]} volume qos list > "$CINDER_PATH"/qos_list
+    ${BASH_ALIASES[os]} volume transfer request list --all-project > "$CINDER_PATH"/transfer_list
+    ${BASH_ALIASES[os]} --os-volume-api-version 3.12 volume summary --all-projects > "$CINDER_PATH"/total_volumes_list
+    # Add --fit once we have https://review.opendev.org/c/openstack/python-openstackclient/+/895971
+    ${BASH_ALIASES[os]} volume backend pool list --long > "$CINDER_PATH"/pool_list
 }
 
 # first we gather generic status of the openstack ctlplane
