@@ -7,6 +7,14 @@
 # output directory.
 
 LOG_DIR="${BASE_COLLECTION_PATH:-/must-gather}"
+
+# If directory doesn't exists it's because we are manually creating the
+# container for development, so we'll use a temporary directory
+if [[ ! -d "$LOG_DIR" ]]; then
+  LOG_DIR=`mktemp -d`
+  export BASE_COLLECTION_PATH="$LOG_DIR"
+fi
+
 LOG="${LOG_DIR}/run.log"
 
 /usr/bin/gather_run 2>&1 | tee "${LOG}"
