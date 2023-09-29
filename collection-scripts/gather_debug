@@ -1,0 +1,13 @@
+#!/bin/bash
+
+FILE=/tmp/rm-to-finish-gathering
+MSG=""\
+"Must gather entering debug mode, will sleep until file $FILE is deleted\n"\
+"You can go into the container now and execute /usr/bin/gather/n"
+
+echo -e "$MSG"
+
+touch "${FILE}"
+while [ -f  "${FILE}" ]; do
+  sleep 5
+done

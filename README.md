@@ -24,6 +24,8 @@ In particular the `openstack-must-gather` will get a dump of:
 
 ## Development
 
+### Building container
+
 You can build the image locally using the Dockerfile included.
 A `Makefile` is also provided. To use it, you must pass:
 - an image name using the variable `MUST_GATHER_IMAGE`.
@@ -37,6 +39,60 @@ The targets for `make` are as follows:
 - `pytest`: Run sanity check and unit tests against the python script collection
 - `podman-build`: builds the must-gather image
 - `podman-push`:  pushes an already-built `must-gather` image
+
+### Debugging container
+
+One possible workflow that can be used for development is to run the openstack
+must-gather in debug mode:
+
+```bash
+$ oc adm must-gather --image=quay.io/openstack-k8s-operators/openstack-must-gather -- gather_debug
+[must-gather      ] OUT Using must-gather plug-in image: quay.io/openstack-k8s-operators/openstack-must-gather:latest
+When opening a support case, bugzilla, or issue please include the following summary data along with any other requested information:
+ClusterID: 6ffe21e8-7dc9-4719-926f-f34ec33e6916
+ClusterVersion: Stable at "4.12.35"
+ClusterOperators:
+	All healthy and stable
+
+
+[must-gather      ] OUT namespace/openshift-must-gather-b9fpw created
+[must-gather      ] OUT clusterrolebinding.rbac.authorization.k8s.io/must-gather-mq6st created
+[must-gather      ] OUT pod for plug-in image quay.io/openstack-k8s-operators/openstack-must-gather:latest created
+[must-gather-mxc7k] POD 2023-09-29T09:56:24.995284210Z Must gather entering debug mode, will sleep until file /tmp/rm-to-finish-gathering is deleted
+[must-gather-mxc7k] POD 2023-09-29T09:56:24.995284210Z
+```
+
+Running in debug mode makes the must gather container just sit waiting for a
+file to be removed, allowing us to go into the container and test our scripts.
+In the above case, where the namespace is `openshift-must-gather-b9fpw` and the
+pod name is `must-gather-mxc7k` we would enter the container with:
+
+```bash
+$ oc -n openshift-must-gather-b9fpw rsh must-gather-mxc7k
+```
+
+And then if we were debugging a bash script called `gather_trigger_gmr`, we
+would run it in debug mode:
+
+```bash
+sh-5.1# bash -x /usr/bin/gather_trigger_gmr
+```
+
+And once we had the script working as intended we would copy the file from a
+terminal:
+
+```bash
+$ oc cp openshift-must-gather-b9fpw/must-gather-mxc7k:usr/bin/gather_trigger_gmr collection-scripts/gather_trigger_gmr
+```
+
+And finally, from  inside the container shell we let the `oc adm must-gather`
+command complete, optionally running everything to ensure we haven't
+inadvertently broken anything in the process:
+
+```bash
+sh-5.1# gather
+sh-5.1# rm /tmp/rm-to-finish-gathering
+```
 
 ## Example
 
