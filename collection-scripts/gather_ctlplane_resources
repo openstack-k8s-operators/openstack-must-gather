@@ -29,13 +29,16 @@ for p in $(oc -n "$NS" get pods -o custom-columns=":metadata.name"); do
     mkdir -p "${NAMESPACE_PATH}"/"$NS"/pods/"$p"/logs
     # describe pod
     /usr/bin/oc -n "$NS" describe pod "$p" > "${NAMESPACE_PATH}"/"$NS"/pods/"$p"/"$p"-describe.log
-    # get logs
-    /usr/bin/oc -n "$NS" logs --prefix=true --all-containers=true "$p" > "${NAMESPACE_PATH}"/"$NS"/pods/"$p"/logs/"$p".log;
+    # get logs for each of the individual containers
+    containers=`/usr/bin/oc -n $NS get pod $p -o jsonpath='{.spec.containers[*].name}'`
+    for c in $containers; do
+        /usr/bin/oc -n "$NS" logs "$p" -c "$c" > "${NAMESPACE_PATH}/${NS}/pods/${p}/logs/${c}.log";
+    done
     # dump --previous logs for all the terminated containers of the pod
     cur=$(/usr/bin/oc -n "$NS" get pods "$p"  -o jsonpath="{.status.containerStatuses[*].lastState.terminated}")
-    if [[ -n "$cur" ]]; then
-        /usr/bin/oc -n "$NS" logs --prefix=true --previous "$p" > "${NAMESPACE_PATH}"/"$NS"/pods/"$p"/logs/"$p"-previous.log;
-    fi
+    for c in $cur; do
+        /usr/bin/oc -n "$NS" logs "$p" -c "$c" > "${NAMESPACE_PATH}/${NS}/pods/${p}/logs/${c}-previous.log";
+    done
 done
 
 # get the required resources
