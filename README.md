@@ -6,7 +6,7 @@ that provides the scripts for an OpenStack control plane logs and data collectio
 ## Usage
 
 ```sh
-oc adm must-gather --image=quay.io/openstack-k8s-operators/must-gather
+oc adm must-gather --image=quay.io/openstack-k8s-operators/openstack-must-gather
 ```
 
 The command above will create a local directory where logs, configs and status
@@ -45,13 +45,13 @@ The targets for `make` are as follows:
 ```
 git clone ssh://git@github.com/openstack-k8s-operators/openstack-must-gather.git
 cd openstack-must-gather
-IMAGE_TAG=<tag> IMAGE_REGISTRY=<registry> MUST_GATHER_IMAGE=must-gather make build
+IMAGE_TAG=<tag> IMAGE_REGISTRY=<registry> MUST_GATHER_IMAGE=openstack-must-gather make build
 ```
 
 On a machine where you have `oc adm` access, do the following:
 
 ```
-oc adm must-gather --image=<registry>/must-gather:<tag>
+oc adm must-gather --image=<registry>/openstack-must-gather:<tag>
 ```
 
 When generation is finished, you will find the dump in the current directory
@@ -86,7 +86,7 @@ gather different aspects of the same environement.
 ```
 oc adm must-gather --image-stream=openstack/kubevirt-must-gather \
    --image-stream=openshift/must-gather \
-   --image=quay.io/openstack-k8s-operators/must-gather:latest
+   --image=quay.io/openstack-k8s-operators/openstack-must-gather:latest
 ```
 
 The command above will create three pods associated to the existing `imagestream`
@@ -94,7 +94,7 @@ objects that point to `openstack`, `openshift` and `kubevirt` must-gather contai
 images.
 
 ```
-[must-gather] OUT pod for plug-in image quay.io/openstack-k8s-operators/must-gather:latest created
+[must-gather] OUT pod for plug-in image quay.io/openstack-k8s-operators/openstack-must-gather:latest created
 [must-gather] OUT pod for plug-in image quay.io/kubevirt/must-gather@sha256:501e30ac7d5b9840a918bb9e5aa830686288ccfeee37d70aaf99cd2e302a2bb0 created
 [must-gather] OUT pod for plug-in image quay.io/openshift-release-dev/ocp-v4.0-art-dev@sha256:e9601b492cbb375f0a05310efa6025691f8bba6a97667976cd4baf4adf0f244c created
 ...
