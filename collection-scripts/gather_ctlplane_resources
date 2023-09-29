@@ -28,7 +28,7 @@ for p in $(oc -n "$NS" get pods -o custom-columns=":metadata.name"); do
     echo "Dump logs for pod: $p";
     mkdir -p "${NAMESPACE_PATH}"/"$NS"/pods/"$p"/logs
     # describe pod
-    /usr/bin/oc -n "$NS" describe pod "$p" > "${NAMESPACE_PATH}"/"$NS"/pods/"$p"/"$p"-describe.log
+    /usr/bin/oc -n "$NS" describe pod "$p" > "${NAMESPACE_PATH}/${NS}/pods/${p}/${p}-describe"
     # get logs for each of the individual containers
     containers=`/usr/bin/oc -n $NS get pod $p -o jsonpath='{.spec.containers[*].name}'`
     for c in $containers; do
