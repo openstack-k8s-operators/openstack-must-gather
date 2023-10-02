@@ -15,4 +15,5 @@ COPY collection-scripts/* /usr/bin/
 # Copy the python script used to mask sensitive data
 COPY pyscripts/mask.py /usr/bin/
 
+# Entrypoint not used when calling `oc adm must-gather`
 ENTRYPOINT /usr/bin/gather
