@@ -94,6 +94,26 @@ sh-5.1# gather
 sh-5.1# rm /tmp/rm-to-finish-gathering
 ```
 
+### Component specifics
+
+Besides the generic OpenShift etcd objects that must-gather scripts are
+currently gathering there's also component specific code that gather other
+information, so when adding or improving a component we should look into:
+
+- `collection-scripts/common.sh`: Services are in the `OSP_SERVICES` variable
+  to indicate that the script must gather its config maps, secrets, additional
+  information, trigger Guru Mediation Reports, etc.
+
+- `collection-scripts/gather_services_status`: Runs OpenStack commands to
+  gather additional information. For example for Cinder it gather state of the
+  services, volume types, qos specs, volume transfer requests, summary of
+  existing volumes, pool information, etc.
+
+- `collection-scripts/gather_trigger_gmr`: Triggers Guru Meditation Reports on
+  the services so they are present in the logs when those are gathered
+  afterwards.
+
+
 ## Example
 
 (optional) Build and push the must-gather image to a registry:
