@@ -4,6 +4,9 @@ DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # shellcheck disable=SC1091
 source "${DIR_NAME}/common.sh"
 
+# get nodes information
+/usr/bin/gather_nodes
+
 # get apiservices
 /usr/bin/gather_apiservices
 
