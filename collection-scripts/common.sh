@@ -60,6 +60,9 @@ export OSP_SERVICES
 WEBHOOKS_COLLECTION_PATH=${BASE_COLLECTION_PATH}/webhooks
 export WEBHOOKS_COLLECTION_PATH
 
+NODES_COLLECTION_PATH=${BASE_COLLECTION_PATH}/nodes
+export NODES_COLLECTION_PATH
+
 # if a namespace doesn't exist, we don't gather resources
 function check_namespace {
     local namespace="$1"
