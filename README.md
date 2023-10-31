@@ -21,6 +21,30 @@ In particular the `openstack-must-gather` will get a dump of:
 - `CSVs`, `pkgmanifests`, `subscriptions`, `installplans`, `operatorgroup`
 - `Pods`, `Deployments`, `Statefulsets`, `ReplicaSets`, `Service`, `Routes`, `ConfigMaps`, (part of / relevant) `Secrets`
 - Network related info (`Metallb` info, `IPAddressPool`, `L2Advertisements`, `NetConfig`, `IPSet`)
+- SOS reports for OpenShift nodes that are running OpenStack service pods.
+
+### Customize gathered data
+
+Some openstack-must-gather collectors can be configured via environmental
+variables to behave differently. For example SOS gathering can be disabled
+passing an empty `SOS_SERVICES` environmental variable.
+
+To provide environmental variables we'll need to invoke the gathering command
+manually like this:
+
+```sh
+oc adm must-gather --image=quay.io/openstack-k8s-operators/openstack-must-gather -- SOS_SERVICES= gather
+```
+
+This is the list of available environmental variables:
+
+- `SOS_SERVICES`: Comma separated list of services to gather SOS reports from.
+  Empty string skips sos report gathering. Eg: `cinder,glance`. Defaults to all
+  of them.
+- `SOS_ONLY_PLUGINS`: List of SOS report plugins to use. Empty string to run
+  them all. Defaults to: `block,cifs,crio,devicemapper,devices,iscsi,lvm2,
+  memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev`.
+
 
 ## Development
 
