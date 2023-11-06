@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+# Trigger Guru Meditation Reports in the different services to have them in the
+# logs: https://github.com/openstack/oslo.reports
+#
+# Some services use signals and others use touching a file to trigger the
+# reporting.
+
+DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "${DIR_NAME}/common.sh"
+
+oc="/usr/bin/oc -n openstack "
+oce="$oc exec "
+
+
+trigger_gmr() {
+    service="$1"
+    case "${service}" in
+    "cinder")
+        cinder_trigger_gmr
+        ;;
+    *) ;;
+    esac
+
+}
+
+
+cinder_trigger_gmr() {
+    # https://docs.openstack.org/cinder/latest/contributor/gmr.html
+    echo "Trigger GMR for Cinder services"
+
+    # Get pod name and type of service for cinder pods
+    svcs=`$oc get pod -l service=cinder -o=custom-columns=N:.metadata.name,T:metadata.labels.component --no-headers`
+
+    # Cinder uses files to trigger GMR because volume and backup share the PID
+    # with the host so we don't know what PID the service has
+    while read -r line; do
+        podname="${line% *}"
+        svctype="${line#* }"
+        $oce $podname -c $svctype -- touch /etc/cinder
+    done <<< "$svcs"
+}
+
+
+# get the list of existing ctlplane services (once) and
+# filter the whole list processing only services with an
+# associated function
+services=`$oce openstackclient -- openstack service list -c Name -f value`
+for svc in "${OSP_SERVICES[@]}"; do
+    [[ "${services[*]}" =~ ${svc} ]] && trigger_gmr "$svc"
+done
+
+exit 0
