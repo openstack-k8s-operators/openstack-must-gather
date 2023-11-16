@@ -53,6 +53,7 @@ declare -a OSP_SERVICES=(
     "designate"
     "barbican"
     "dataplane"
+    "ceilometer"
 )
 export OSP_SERVICES
 
