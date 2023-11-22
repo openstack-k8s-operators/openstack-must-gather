@@ -10,7 +10,7 @@ source "${DIR_NAME}/gather_nodes"
 source "${DIR_NAME}/gather_apiservices"
 
 # get CRDs
-/usr/bin/gather_crds
+source "${DIR_NAME}/gather_crds"
 
 # get CRs
 /usr/bin/gather_crs
