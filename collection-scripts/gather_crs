@@ -1,8 +1,11 @@
 #!/bin/bash
 
-DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
-source "${DIR_NAME}/common.sh"
+# When called from the shell directly
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
 
 # Resource list
 resources=()
@@ -18,6 +21,7 @@ done
 resources+=("baremetalhosts.metal3.io")
 
 # we use nested loops to nicely output objects partitioned per namespace, kind
+echo "Gathering CRs"
 for resource in "${resources[@]}"; do
   /usr/bin/oc get "${resource}" --all-namespaces -o custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace --no-headers 2> /dev/null | \
   while read -r ocresource; do
@@ -26,13 +30,13 @@ for resource in "${resources[@]}"; do
     if [ -z "${ocproject}" ]||[ "${ocproject}" == "<none>" ]; then
       object_collection_path=${BASE_COLLECTION_PATH}/cluster-scoped-resources/${resource}
       mkdir -p "${object_collection_path}"
-      /usr/bin/oc get "${resource}" -o yaml "${ocobject}" > "${object_collection_path}/${ocobject}.yaml"
+      run_bg /usr/bin/oc get "${resource}" -o yaml "${ocobject}" '>' "${object_collection_path}/${ocobject}.yaml"
     else
       object_collection_path=${BASE_COLLECTION_PATH}/namespaces/${ocproject}/crs/${resource}
       mkdir -p "${object_collection_path}"
-      /usr/bin/oc get "${resource}" -n "${ocproject}" -o yaml "${ocobject}" > "${object_collection_path}/${ocobject}.yaml"
+      run_bg /usr/bin/oc get "${resource}" -n "${ocproject}" -o yaml "${ocobject}" '>' "${object_collection_path}/${ocobject}.yaml"
     fi
   done
 done
 
-exit 0
+[[ $CALLED -eq 1 ]] && wait_bg

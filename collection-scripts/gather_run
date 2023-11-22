@@ -13,7 +13,7 @@ source "${DIR_NAME}/gather_apiservices"
 source "${DIR_NAME}/gather_crds"
 
 # get CRs
-/usr/bin/gather_crs
+source "${DIR_NAME}/gather_crs"
 
 # get webhooks
 /usr/bin/gather_webhooks
