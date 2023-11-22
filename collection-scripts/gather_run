@@ -23,7 +23,7 @@ source "${DIR_NAME}/gather_webhooks"
 expand_ns "kuttl"
 
 # Trigger Guru Meditation Reports so we then have then in the service logs
-/usr/bin/gather_trigger_gmr
+source "${DIR_NAME}/gather_trigger_gmr"
 
 for NS in "${DEFAULT_NAMESPACES[@]}"; do
     # get Services Config (CM)

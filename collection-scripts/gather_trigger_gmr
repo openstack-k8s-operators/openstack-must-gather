@@ -6,9 +6,11 @@
 # Some services use signals and others use touching a file to trigger the
 # reporting.
 
-DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
-source "${DIR_NAME}/common.sh"
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
 
 oc="/usr/bin/oc -n openstack "
 oce="$oc exec "
@@ -38,7 +40,7 @@ cinder_trigger_gmr() {
     while read -r line; do
         podname="${line% *}"
         svctype="${line#* }"
-        $oce $podname -c $svctype -- touch /etc/cinder
+        run_bg $oce $podname -c $svctype -- touch /etc/cinder
     done <<< "$svcs"
 }
 
@@ -51,4 +53,4 @@ for svc in "${OSP_SERVICES[@]}"; do
     [[ "${services[*]}" =~ ${svc} ]] && trigger_gmr "$svc"
 done
 
-exit 0
+[[ $CALLED -eq 1 ]] && wait_bg
