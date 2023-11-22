@@ -16,7 +16,7 @@ source "${DIR_NAME}/gather_crds"
 source "${DIR_NAME}/gather_crs"
 
 # get webhooks
-/usr/bin/gather_webhooks
+source "${DIR_NAME}/gather_webhooks"
 
 # expand the existing NAMESPACES including kuttl (required for OpenStack CI)
 # if exist so we can gather resources about tests
