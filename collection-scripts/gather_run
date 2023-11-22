@@ -29,6 +29,7 @@ source "${DIR_NAME}/gather_trigger_gmr"
 source "${DIR_NAME}/gather_services_cm"
 source "${DIR_NAME}/gather_secrets"
 source "${DIR_NAME}/gather_sub"
+source "${DIR_NAME}/gather_ctlplane_resources"
 
 for NS in "${DEFAULT_NAMESPACES[@]}"; do
     # get Services Config (CM)
@@ -40,7 +41,7 @@ for NS in "${DEFAULT_NAMESPACES[@]}"; do
     # get routes, services, jobs, deployments
     # daemonsets, statefulsets, replicasets,
     # pods (describe and get logs)
-    /usr/bin/gather_ctlplane_resources "$NS"
+    gather_ctlplane_resources "$NS"
 done
 
 # get network related resources (nncp, ipaddresspool, l2advertisement)
