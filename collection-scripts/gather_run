@@ -45,4 +45,7 @@ done
 /usr/bin/gather_services_status
 
 # get SOS Reports
-/usr/bin/gather_sos
+source "${DIR_NAME}/gather_sos"
+
+# Wait for background tasks to complete
+wait_bg
