@@ -25,9 +25,12 @@ expand_ns "kuttl"
 # Trigger Guru Meditation Reports so we then have then in the service logs
 source "${DIR_NAME}/gather_trigger_gmr"
 
+# Import functions used in the for loop
+source "${DIR_NAME}/gather_services_cm"
+
 for NS in "${DEFAULT_NAMESPACES[@]}"; do
     # get Services Config (CM)
-    /usr/bin/gather_services_cm "$NS"
+    gather_services_cm "$NS"
     # get Services Secrets
     /usr/bin/gather_secrets "$NS"
     # get subscriptions / installplans / packagemanifests / CSVs
