@@ -1,7 +1,6 @@
 #!/bin/bash
 
 DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
 source "${DIR_NAME}/common.sh"
 
 # get nodes information
