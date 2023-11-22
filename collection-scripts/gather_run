@@ -42,7 +42,7 @@ done
 /usr/bin/gather_network
 
 # get SVC status (inspect ctlplane)
-/usr/bin/gather_services_status
+source "${DIR_NAME}/gather_services_status"
 
 # get SOS Reports
 source "${DIR_NAME}/gather_sos"
