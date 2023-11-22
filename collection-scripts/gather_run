@@ -39,7 +39,7 @@ for NS in "${DEFAULT_NAMESPACES[@]}"; do
 done
 
 # get network related resources (nncp, ipaddresspool, l2advertisement)
-/usr/bin/gather_network
+source "${DIR_NAME}/gather_network"
 
 # get SVC status (inspect ctlplane)
 source "${DIR_NAME}/gather_services_status"
