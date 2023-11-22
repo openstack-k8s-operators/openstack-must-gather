@@ -1,8 +1,14 @@
 #!/bin/bash
+#
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/bg.sh"
+fi
 
 mkdir -p "${NODES_COLLECTION_PATH}"
 for node in $(/usr/bin/oc get nodes -o custom-columns=NAME:.metadata.name --no-headers); do
-    /usr/bin/oc get nodes "${node}" -o yaml > "${NODES_COLLECTION_PATH}/${node}.yaml"
+    run_bg /usr/bin/oc get nodes "${node}" -o yaml '>' "${NODES_COLLECTION_PATH}/${node}.yaml"
 done
 
-exit 0
+[[ $CALLED -eq 1 ]] && wait_bg
