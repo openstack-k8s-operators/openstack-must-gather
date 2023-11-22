@@ -1,0 +1,151 @@
+#!/bin/bash
+# Gather SOS reports from the OpenShift nodes that are running OpenStack pods.
+# They are stored uncompressed in the must-gather so there is no nested
+# compression of sos reports within the must-gather.
+#   SOS_SERVICES: comma separated list of services to gather SOS reports from,
+#                 empty string skips sos report gathering.  eg: cinder,glance
+#                 Defaults to all of them.
+#   SOS_ONLY_PLUGINS: list of sos report plugins to use. Empty string to run
+#                     them all. Defaults to: block,cifs,crio,devicemapper,
+#                     devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,
+#                     process,processor,selinux,scsi,udev
+#
+# TODO: Confirm with GSS the default for SOS_ONLY_PLUGINS
+# TODO: When we deploy in a non dedicated cluster where we can have to gather
+#       from more than 3 nodes we may want to limit the concurrency.
+
+DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+# shellcheck disable=SC1091
+source "${DIR_NAME}/common.sh"
+
+###############################################################################
+# VARIABLE INITIALIZATION
+
+# If unset use all default services
+if [ "${SOS_SERVICES-unset}" = "unset" ]; then
+    SOS_SERVICES=( "${OSP_SERVICES[@]}" )
+
+# If list of services is set and empty, nothing to do
+elif [[ -z "${SOS_SERVICES[*]}" ]]; then
+    echo "Skipping SOS gathering for controller nodes"
+    exit 0
+
+# If set, convert to an array
+else
+    IFS=',' read -r -a SOS_SERVICES <<< "$SOS_SERVICES"
+fi
+
+# Default to some plugins if SOS_LIMIT_PLUGINS is not set
+SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev}"
+if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
+    SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
+fi
+
+SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
+SOS_PATH_NODES="${BASE_COLLECTION_PATH}/sos-reports/_all_nodes"
+
+TMPDIR=/var/tmp/sos-osp
+
+###############################################################################
+# SOS GATHERING
+
+gather_node_sos () {
+    node="$1"
+    echo "Generating SOS Report for ${node}"
+    # Can only run 1 must-gather at a time on each host. We remove any existing
+    # toolbox container running from previous time with `podman rm`
+    #
+    # Current toolbox can ask via stdin if we want to update [1] so we just
+    # update the container beforehand to prevent it from ever asking. In the
+    # next toolbox [2] that may no longer be the case.
+    # [1]: https://github.com/coreos/toolbox/blob/9a7c840fb4881f406287bf29e5f35b6625c7b358/rhcos-toolbox#L37
+    # [2]: https://github.com/coreos/toolbox/issues/60
+    oc debug "node/$node" -- chroot /host bash \
+      -c "echo 'TOOLBOX_NAME=toolbox-osp' > /root/.toolboxrc ; \
+          rm -rf \"${TMPDIR}\" && \
+          mkdir -p \"${TMPDIR}\" && \
+          sudo podman rm --force toolbox-osp;  \
+          sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json registry.redhat.io/rhel9/support-tools && \
+          toolbox sos report --batch $SOS_LIMIT --tmp-dir=\"${TMPDIR}\""
+
+    # shellcheck disable=SC2181
+    if [ $? -ne 0 ]; then
+        echo "Failed to run sos report on node ${node}, won't retrieve data"
+        exit 1
+    fi
+
+    # Download and decompress the tar.xz file from the remote node into the
+    # must-gather directory.
+    # If we don't want to decompress at this stage we would need to modify the
+    # yank program so it does the nested decompression automatically.
+    echo "Retrieving SOS Report for ${node}"
+    mkdir "${SOS_PATH_NODES}/sosreport-$node"
+    oc debug "node/$node" -- chroot /host bash \
+      -c "cat ${TMPDIR}/*.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 -Jxf -
+
+    # shellcheck disable=SC2181
+    if [ $? -ne 0 ]; then
+        echo "Failed to download and decompress sosreport-$node.tar.xz not deleting file"
+        exit 1
+    fi
+
+    # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
+    chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+
+    # Delete the tar.xz file from the remote node
+    oc debug "node/$node" -- chroot /host bash -c "rm -rf $TMPDIR"
+}
+
+
+###############################################################################
+# MAIN
+#
+dest_svc_path () {
+    local svc=$1
+    # Some services have the project name in the service label, eg: cinder
+    if [[ "${SOS_SERVICES[*]}" == *"${svc}"* ]]; then
+        echo -n "${SOS_PATH}/${svc}"
+        return
+    fi
+
+    # Other services have the component in the service label, eg: nova-api
+    for os_svc in "${SOS_SERVICES[@]}"; do
+        if [[ "$svc" == "$os_svc"* ]]; then
+            echo -n "${SOS_PATH}/${os_svc}"
+            return
+        fi
+    done
+}
+
+mkdir -p "${SOS_PATH_NODES}"
+
+# Get list of nodes and service label for each of the OpenStack service pods
+# Not using -o jsonpath='{.spec.nodeName}' because it uses space separator
+svc_nodes=$(/usr/bin/oc -n openstack get pod -l service --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:.metadata.labels.service,NAME:.metadata.name)
+nodes=''
+while read -r node svc name; do
+    svc_path=$(dest_svc_path "$svc")
+    if [[ -n "$svc_path" ]]; then
+        nodes="${nodes}${node}"$'\n'
+        mkdir -p "$svc_path"
+        sos_dir="${svc_path}/sos-report-${name}"
+        [[ ! -e "$sos_dir" ]] && ln -s "../_all_nodes/sosreport-$node" "$sos_dir" 2>/dev/null
+    fi
+done <<< "$svc_nodes"
+
+# Remove duplicated nodes because they are running multiple services
+nodes=$(echo "$nodes" | sort | uniq)
+echo "Will retrieve SOS reports from nodes ${nodes//$'\n'/ }"
+
+for node in $nodes; do
+    [[ -z "$node" ]] && continue
+    # Gather SOS report for the node in background
+    (gather_node_sos "$node")&
+done
+
+# Wait for all processes to complete and check their exit status one by one
+FAILED=0
+for node in $nodes; do
+    wait -n || FAILED=1
+done
+exit $FAILED
