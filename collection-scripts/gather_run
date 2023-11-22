@@ -27,12 +27,13 @@ source "${DIR_NAME}/gather_trigger_gmr"
 
 # Import functions used in the for loop
 source "${DIR_NAME}/gather_services_cm"
+source "${DIR_NAME}/gather_secrets"
 
 for NS in "${DEFAULT_NAMESPACES[@]}"; do
     # get Services Config (CM)
     gather_services_cm "$NS"
     # get Services Secrets
-    /usr/bin/gather_secrets "$NS"
+    gather_secrets "$NS"
     # get subscriptions / installplans / packagemanifests / CSVs
     /usr/bin/gather_sub "$NS"
     # get routes, services, jobs, deployments
