@@ -1,0 +1,108 @@
+#!/bin/bash
+# Gather SOS reports from the EDPM nodes.
+# They are stored uncompressed in the must-gather so there is no nested
+# compression of sos reports within the must-gather.
+#   SOS_EDPM: comma separated list of edpm nodes to gather SOS reports from,
+#             empty string skips sos report gathering. Accepts keyword all to
+#             gather all nodes. eg: edpm-compute-0,edpm-compute-1
+#   SOS_EDPM_PROFILES: list of sos report profiles to use. Empty string to run
+#                      them all. Defaults to: system,storage,virt
+#
+# TODO: Confirm this can actually ssh into the EDPM nodes besides in the CRC
+#       case.  Worst case we may have to define a Job/Pod with the right
+#       networks to do the work.
+# TODO: Add openstack_edpm to the list once this PR merges and is released
+#       https://github.com/openstack-k8s-operators/openstack-must-gather/pull/18
+
+# When called from the shell directly
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
+
+SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
+SOS_PATH_NODES="${BASE_COLLECTION_PATH}/sos-reports/_all_nodes"
+TMPDIR=/var/tmp/sos-osp
+
+if [[ -z "$SOS_EDPM" ]]; then
+    echo "Skipping SOS gathering for EDPM nodes"
+    [[ $CALLED -eq 1 ]] && exit 0
+    return
+
+else
+    IFS=',' read -r -a SOS_EDPM <<< "$SOS_EDPM"
+fi
+
+# Default to some plugins if SOS_EDPM_PROFILES is not set
+SOS_EDPM_PROFILES="${SOS_EDPM_PROFILES-system,storage,virt}"
+if [[ -n "$SOS_EDPM_PROFILES" ]]; then
+    SOS_LIMIT="-p $SOS_EDPM_PROFILES"
+fi
+
+
+SSH () {
+    ssh -i "$key_path" "${username}@${address}" -o StrictHostKeyChecking=accept-new "$@"
+}
+
+gather_edpm_sos () {
+    local node=$1
+    local address=$2
+    local username=$3
+    local secret=$4
+    local namespace=$5
+
+    echo "Generating SOS Report for EDPM ${node}"
+    key_path="${HOME}/.ssh/${secret}.key"
+    if [[ ! -f "$key_path" ]]; then
+        mkdir -m 0700 "${HOME}/.ssh" 2>/dev/null
+        oc get -n $namespace secret/$secret -o go-template='{{ index .data "ssh-privatekey" | base64decode }}'  > "$key_path"
+        chmod 0600 "$key_path"
+    # Avoid race condition
+    else
+        while [[ "600" != $(stat -c "%a" "$key_path") ]]; do
+            sleep 0.1
+        done
+    fi
+
+    SSH sudo "bash -c \"rm -rf $TMPDIR && mkdir $TMPDIR && sos report --batch --tmp-dir=$TMPDIR $SOS_LIMIT\""
+    # shellcheck disable=SC2181
+    if [ $? -ne 0 ]; then
+        echo "Failed to run sos report on ${node}, won't retrieve data"
+        return 1
+    fi
+
+    echo "Retrieving SOS Report for ${node}"
+    mkdir -p "${SOS_PATH_NODES}/sosreport-$node"
+    SSH sudo "cat ${TMPDIR}/*.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf -
+
+    # shellcheck disable=SC2181
+    if [ $? -ne 0 ]; then
+        echo "Failed to download and decompress sosreport-$node.tar.xz not deleting file"
+        return 1
+    fi
+
+    # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
+    chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+
+    # Delete the tar.xz file from the remote node
+    SSH sudo "rm -rf \"$TMPDIR\""
+
+    # Link the sos report in the nova directory
+    mkdir -p ${SOS_PATH}/nova
+    ln -s "../_all_nodes/sosreport-$node" "${SOS_PATH}/nova/sos-report-${node}" 2>/dev/null
+    echo "Finished retrieving SOS Report for ${node}"
+}
+
+
+data=$(oc get openstackdataplanenodesets --all-namespaces -o go-template='{{range $indexns,$nodeset := .items}}{{range $index,$node := $nodeset.spec.nodes}}{{printf "%s %s %s %s %s\n" $node.hostName $node.ansible.ansibleHost $nodeset.spec.nodeTemplate.ansible.ansibleUser $nodeset.spec.nodeTemplate.ansibleSSHPrivateKeySecret $nodeset.metadata.namespace}}{{end}}{{end}}')
+
+while read -r node address username secret namespace; do
+    [[ -z "$node" ]] && continue
+    if [[ "${SOS_EDPM[0]}" == "all" || "${SOS_EDPM[*]}" == *"${node}"* ]]; then
+        run_bg gather_edpm_sos $node $address $username $secret $namespace
+    fi
+done <<< "$data"
+
+
+[[ $CALLED -eq 1 ]] && wait_bg
