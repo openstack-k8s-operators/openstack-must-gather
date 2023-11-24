@@ -1,49 +1,58 @@
 #!/bin/bash
 
 DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
 source "${DIR_NAME}/common.sh"
 
+# get SOS Reports first, as they are the slowest to run and will benefit most
+# of the parallel execution
+source "${DIR_NAME}/gather_sos"
+
 # get nodes information
-/usr/bin/gather_nodes
+source "${DIR_NAME}/gather_nodes"
 
 # get apiservices
-/usr/bin/gather_apiservices
+source "${DIR_NAME}/gather_apiservices"
 
 # get CRDs
-/usr/bin/gather_crds
+source "${DIR_NAME}/gather_crds"
 
 # get CRs
-/usr/bin/gather_crs
+source "${DIR_NAME}/gather_crs"
 
 # get webhooks
-/usr/bin/gather_webhooks
+source "${DIR_NAME}/gather_webhooks"
 
 # expand the existing NAMESPACES including kuttl (required for OpenStack CI)
 # if exist so we can gather resources about tests
 expand_ns "kuttl"
 
 # Trigger Guru Meditation Reports so we then have then in the service logs
-/usr/bin/gather_trigger_gmr
+source "${DIR_NAME}/gather_trigger_gmr"
+
+# Import functions used in the for loop
+source "${DIR_NAME}/gather_services_cm"
+source "${DIR_NAME}/gather_secrets"
+source "${DIR_NAME}/gather_sub"
+source "${DIR_NAME}/gather_ctlplane_resources"
 
 for NS in "${DEFAULT_NAMESPACES[@]}"; do
     # get Services Config (CM)
-    /usr/bin/gather_services_cm "$NS"
+    gather_services_cm "$NS"
     # get Services Secrets
-    /usr/bin/gather_secrets "$NS"
+    gather_secrets "$NS"
     # get subscriptions / installplans / packagemanifests / CSVs
-    /usr/bin/gather_sub "$NS"
+    gather_sub "$NS"
     # get routes, services, jobs, deployments
     # daemonsets, statefulsets, replicasets,
     # pods (describe and get logs)
-    /usr/bin/gather_ctlplane_resources "$NS"
+    gather_ctlplane_resources "$NS"
 done
 
 # get network related resources (nncp, ipaddresspool, l2advertisement)
-/usr/bin/gather_network
+source "${DIR_NAME}/gather_network"
 
 # get SVC status (inspect ctlplane)
-/usr/bin/gather_services_status
+source "${DIR_NAME}/gather_services_status"
 
-# get SOS Reports
-/usr/bin/gather_sos
+# Wait for background tasks to complete
+wait_bg

@@ -1,0 +1,5 @@
+# Look for 'source'd files relative to the checked script
+source-path=SCRIPTDIR
+external-sources=SCRIPTDIR
+
+disable=SC2016,SC2006,SC2140,SC2086

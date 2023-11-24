@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source "${DIR_NAME}/bg.sh"
+
 export BASE_COLLECTION_PATH="${BASE_COLLECTION_PATH:-/must-gather}"
 declare -a DEFAULT_NAMESPACES=(
     "openstack"
@@ -81,7 +83,7 @@ function get_resources {
     mkdir -p "${NAMESPACE_PATH}"/"$NS"/"$resource"
     for res in $(oc -n "$NS" get "$resource" -o custom-columns=":metadata.name"); do
         echo "Dump $resource: $res";
-        /usr/bin/oc -n "$NS" get "$resource" "$res" -o yaml > "${NAMESPACE_PATH}"/"$NS"/"$resource"/"$res".yaml
+        run_bg /usr/bin/oc -n "$NS" get "$resource" "$res" -o yaml '>' "${NAMESPACE_PATH}/${NS}/${resource}/${res}.yaml"
     done
 }
 

@@ -1,8 +1,11 @@
 #!/bin/bash
 
-DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
-source "${DIR_NAME}/common.sh"
+# When called from the shell directly
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
 
 alias os="/usr/bin/oc -n openstack rsh openstackclient openstack "
 
@@ -32,52 +35,52 @@ get_status() {
 # Generic OpenStack cltplane gathering -
 get_openstack_status() {
     mkdir -p "$BASE_COLLECTION_PATH"/ctlplane
-    ${BASH_ALIASES[os]} endpoint list > "$BASE_COLLECTION_PATH"/ctlplane/endpoints
-    ${BASH_ALIASES[os]} service list > "$BASE_COLLECTION_PATH"/ctlplane/services
-    ${BASH_ALIASES[os]} compute service list > "$BASE_COLLECTION_PATH"/ctlplane/compute_service_list
-    ${BASH_ALIASES[os]} network agent list > "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
+    run_bg ${BASH_ALIASES[os]} endpoint list '>' "$BASE_COLLECTION_PATH"/ctlplane/endpoints
+    run_bg ${BASH_ALIASES[os]} service list '>' "$BASE_COLLECTION_PATH"/ctlplane/services
+    run_bg ${BASH_ALIASES[os]} compute service list '>' "$BASE_COLLECTION_PATH"/ctlplane/compute_service_list
+    run_bg ${BASH_ALIASES[os]} network agent list '>' "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
 }
 
 # Manila service gathering -
 get_manila_status() {
     local MANILA_PATH="$BASE_COLLECTION_PATH/ctlplane/manila"
     mkdir -p "$MANILA_PATH"
-    ${BASH_ALIASES[os]} share service list > "$MANILA_PATH"/service_list
-    ${BASH_ALIASES[os]} share type list > "$MANILA_PATH"/share_types
-    ${BASH_ALIASES[os]} share pool list --detail > "$MANILA_PATH"/pool_list
+    run_bg ${BASH_ALIASES[os]} share service list '>' "$MANILA_PATH"/service_list
+    run_bg ${BASH_ALIASES[os]} share type list '>' "$MANILA_PATH"/share_types
+    run_bg ${BASH_ALIASES[os]} share pool list --detail '>' "$MANILA_PATH"/pool_list
 }
 
 # Neutron service gathering -
 get_neutron_status() {
     local NEUTRON_PATH="$BASE_COLLECTION_PATH/ctlplane/neutron"
     mkdir -p "$NEUTRON_PATH"
-    ${BASH_ALIASES[os]} subnet list > "$NEUTRON_PATH"/subnet_list
-    ${BASH_ALIASES[os]} port list > "$NEUTRON_PATH"/port_list
-    ${BASH_ALIASES[os]} router list > "$NEUTRON_PATH"/router_list
-    ${BASH_ALIASES[os]} network agent list > "$NEUTRON_PATH"/agent_list
-    ${BASH_ALIASES[os]} network list > "$NEUTRON_PATH"/network_list
-    ${BASH_ALIASES[os]} extension list > "$NEUTRON_PATH"/extension_list
-    ${BASH_ALIASES[os]} floating ip list > "$NEUTRON_PATH"/floating_ip_list
-    ${BASH_ALIASES[os]} security group list > "$NEUTRON_PATH"/security_group_list
+    run_bg ${BASH_ALIASES[os]} subnet list '>' "$NEUTRON_PATH"/subnet_list
+    run_bg ${BASH_ALIASES[os]} port list '>' "$NEUTRON_PATH"/port_list
+    run_bg ${BASH_ALIASES[os]} router list '>' "$NEUTRON_PATH"/router_list
+    run_bg ${BASH_ALIASES[os]} network agent list '>' "$NEUTRON_PATH"/agent_list
+    run_bg ${BASH_ALIASES[os]} network list '>' "$NEUTRON_PATH"/network_list
+    run_bg ${BASH_ALIASES[os]} extension list '>' "$NEUTRON_PATH"/extension_list
+    run_bg ${BASH_ALIASES[os]} floating ip list '>' "$NEUTRON_PATH"/floating_ip_list
+    run_bg ${BASH_ALIASES[os]} security group list '>' "$NEUTRON_PATH"/security_group_list
 }
 
 # Cinder service gathering - services, vol types, qos, transfers, pools,
 get_cinder_status() {
     local CINDER_PATH="$BASE_COLLECTION_PATH/ctlplane/cinder"
     mkdir -p "$CINDER_PATH"
-    ${BASH_ALIASES[os]} volume service list > "$CINDER_PATH"/service_list
-    ${BASH_ALIASES[os]} volume type list --long > "$CINDER_PATH"/type_list
-    ${BASH_ALIASES[os]} volume qos list > "$CINDER_PATH"/qos_list
-    ${BASH_ALIASES[os]} volume transfer request list --all-project > "$CINDER_PATH"/transfer_list
-    ${BASH_ALIASES[os]} --os-volume-api-version 3.12 volume summary --all-projects > "$CINDER_PATH"/total_volumes_list
+    run_bg ${BASH_ALIASES[os]} volume service list '>' "$CINDER_PATH"/service_list
+    run_bg ${BASH_ALIASES[os]} volume type list --long '>' "$CINDER_PATH"/type_list
+    run_bg ${BASH_ALIASES[os]} volume qos list '>' "$CINDER_PATH"/qos_list
+    run_bg ${BASH_ALIASES[os]} volume transfer request list --all-project '>' "$CINDER_PATH"/transfer_list
+    run_bg ${BASH_ALIASES[os]} --os-volume-api-version 3.12 volume summary --all-projects '>' "$CINDER_PATH"/total_volumes_list
     # Add --fit once we have https://review.opendev.org/c/openstack/python-openstackclient/+/895971
-    ${BASH_ALIASES[os]} volume backend pool list --long > "$CINDER_PATH"/pool_list
+    run_bg ${BASH_ALIASES[os]} volume backend pool list --long '>' "$CINDER_PATH"/pool_list
 }
 
 # first we gather generic status of the openstack ctlplane
 # then we process the existing services (if an associated
 # function has been defined)
-get_status "openstack"
+run_bg get_status "openstack"
 # get the list of existing ctlplane services (once) and
 # filter the whole list processing only services with an
 # associated function
@@ -86,4 +89,4 @@ for svc in "${OSP_SERVICES[@]}"; do
     [[ "${services[*]}" =~ ${svc} ]] && get_status "$svc"
 done
 
-exit 0
+[[ $CALLED -eq 1 ]] && wait_bg

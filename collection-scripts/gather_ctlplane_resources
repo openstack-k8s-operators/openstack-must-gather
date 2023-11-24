@@ -1,50 +1,59 @@
 #!/bin/bash
 
-# load shared functions and data
-DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
-source "${DIR_NAME}/common.sh"
-
-NS="$1"
-if [ -z "$NS" ]; then
-    echo "No namespace passed, using the default one"
-    NS=openstack
+# load shared functions and data when not sourced
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
 fi
 
-# Only get resources if the namespace exists
-if ! check_namespace "${NS}"; then
-    exit 0
+
+function gather_ctlplane_resources {
+    local NS="$1"
+    # Only get resources if the namespace exists
+    if ! check_namespace "${NS}"; then
+        return
+    fi
+
+    # Get the view of the current namespace related resources, including pods
+    mkdir -p "${NAMESPACE_PATH}"/"${NS}"
+    run_bg /usr/bin/oc -n "${NS}" get all '>' "${NAMESPACE_PATH}/${NS}/all_resources.log"
+    run_bg /usr/bin/oc -n "${NS}" get events '>' "${NAMESPACE_PATH}/${NS}/events.log"
+    run_bg /usr/bin/oc -n "${NS}" get pvc '>' "${NAMESPACE_PATH}/${NS}/pvc.log"
+    run_bg /usr/bin/oc -n "${NS}" get nad -o yaml '>' "${NAMESPACE_PATH}/${NS}/nad.log"
+
+    # We make a single request to get lines in the form <pod> <container> <crash_status>
+    data=$(oc -n "$NS" get pod -o go-template='{{range $indexp,$pod := .items}}{{range $index,$element := $pod.status.containerStatuses}}{{printf "%s %s" $pod.metadata.name $element.name}} {{ if ne $element.lastState.terminated nil }}{{ printf "%s" $element.lastState.terminated }}{{ end }}{{ printf "\n"}}{{end}}{{end}}')
+    while read -r pod container crash_status; do
+        echo "Dump logs for ${container} from ${pod} pod";
+        pod_dir="${NAMESPACE_PATH}/${NS}/pods/${pod}"
+        log_dir="${pod_dir}/logs"
+        if [ ! -d "$log_dir" ]; then
+            mkdir -p "$log_dir"
+            # describe pod
+            run_bg oc -n "$NS" describe pod "$pod" '>' "${pod_dir}/${pod}-describe"
+        fi
+        run_bg oc -n "$NS" logs "$pod" -c "$container" '>' "${log_dir}/${container}.log"
+        if [[ -n "$crash_status" ]]; then
+            run_bg oc -n "$NS" logs "$pod" -c "$container" --previous '>' "${log_dir}/${container}-previous.log";
+        fi
+    done <<< "$data"
+
+    # get the required resources
+    # shellcheck disable=SC2154
+    for r in "${resources[@]}"; do
+        get_resources "$r" "$NS"
+    done
+}
+
+if [[ $CALLED -eq 1 ]]; then
+    NS="$1"
+    if [ -z "$NS" ]; then
+        echo "No namespace passed, using the default one"
+        NS=openstack
+    fi
+
+    gather_ctlplane_resources "$NS"
+
+    wait_bg
 fi
-
-# Get the view of the current namespace related resources, including pods
-mkdir -p "${NAMESPACE_PATH}"/"${NS}"
-/usr/bin/oc -n "${NS}" get all > "${NAMESPACE_PATH}"/"${NS}"/all_resources.log
-/usr/bin/oc -n "${NS}" get events > "${NAMESPACE_PATH}"/"${NS}"/events.log
-/usr/bin/oc -n "${NS}" get pvc > "${NAMESPACE_PATH}"/"${NS}"/pvc.log
-/usr/bin/oc -n "${NS}" get nad -o yaml > "${NAMESPACE_PATH}"/"${NS}"/nad.log
-
-# Get pods and the associated logs
-for p in $(oc -n "$NS" get pods -o custom-columns=":metadata.name"); do
-    echo "Dump logs for pod: $p";
-    mkdir -p "${NAMESPACE_PATH}"/"$NS"/pods/"$p"/logs
-    # describe pod
-    /usr/bin/oc -n "$NS" describe pod "$p" > "${NAMESPACE_PATH}/${NS}/pods/${p}/${p}-describe"
-    # get logs for each of the individual containers
-    containers=`/usr/bin/oc -n $NS get pod $p -o jsonpath='{.spec.containers[*].name}'`
-    for c in $containers; do
-        /usr/bin/oc -n "$NS" logs "$p" -c "$c" > "${NAMESPACE_PATH}/${NS}/pods/${p}/logs/${c}.log";
-    done
-    # dump --previous logs for all the terminated containers of the pod
-    cur=$(/usr/bin/oc -n "$NS" get pods "$p"  -o jsonpath="{.status.containerStatuses[*].lastState.terminated}")
-    for c in $cur; do
-        /usr/bin/oc -n "$NS" logs "$p" -c "$c" > "${NAMESPACE_PATH}/${NS}/pods/${p}/logs/${c}-previous.log";
-    done
-done
-
-# get the required resources
-# shellcheck disable=SC2154
-for r in "${resources[@]}"; do
-    get_resources "$r" "$NS"
-done
-
-exit 0

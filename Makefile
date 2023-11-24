@@ -9,7 +9,7 @@ endif
 build: check-image podman-build podman-push ## Build and push the must-gather image
 
 check: ## Run sanity check against the script collection
-	shellcheck -e SC2016 -e SC2006 -e SC2140 -e SC2086 collection-scripts/*
+	shellcheck collection-scripts/*
 
 pytest: ## Run sanity check against python scripts in pydir
 	tox -c pyscripts/tox.ini

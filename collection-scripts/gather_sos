@@ -11,12 +11,13 @@
 #                     process,processor,selinux,scsi,udev
 #
 # TODO: Confirm with GSS the default for SOS_ONLY_PLUGINS
-# TODO: When we deploy in a non dedicated cluster where we can have to gather
-#       from more than 3 nodes we may want to limit the concurrency.
 
-DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-# shellcheck disable=SC1091
-source "${DIR_NAME}/common.sh"
+# When called from the shell directly
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
 
 ###############################################################################
 # VARIABLE INITIALIZATION
@@ -28,14 +29,15 @@ if [ "${SOS_SERVICES-unset}" = "unset" ]; then
 # If list of services is set and empty, nothing to do
 elif [[ -z "${SOS_SERVICES[*]}" ]]; then
     echo "Skipping SOS gathering for controller nodes"
-    exit 0
+    [[ $CALLED -eq 1 ]] && exit 0
+    return
 
 # If set, convert to an array
 else
     IFS=',' read -r -a SOS_SERVICES <<< "$SOS_SERVICES"
 fi
 
-# Default to some plugins if SOS_LIMIT_PLUGINS is not set
+# Default to some plugins if SOS_ONLY_PLUGINS is not set
 SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev}"
 if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
@@ -71,8 +73,16 @@ gather_node_sos () {
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
         echo "Failed to run sos report on node ${node}, won't retrieve data"
-        exit 1
+        return 1
     fi
+
+    # Wait until we know for sure the debug pod is gone, this is to try to
+    # workaround the following failure:
+    #   Error from server (BadRequest): container "container-00" in pod debug is waiting to start: ContainerCreating
+    while oc get pod "${node}-debug" 1>/dev/null 2>&1 1>/dev/; do
+        sleep 1
+    done
+    sleep 1
 
     # Download and decompress the tar.xz file from the remote node into the
     # must-gather directory.
@@ -80,18 +90,19 @@ gather_node_sos () {
     # yank program so it does the nested decompression automatically.
     echo "Retrieving SOS Report for ${node}"
     mkdir "${SOS_PATH_NODES}/sosreport-$node"
-    oc debug "node/$node" -- chroot /host bash \
-      -c "cat ${TMPDIR}/*.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 -Jxf -
+    # Add "--loglevel 6" to help debug in case there's a failure
+    oc debug --loglevel 6 "node/$node" -- cat "/host${TMPDIR}/*.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf -
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
         echo "Failed to download and decompress sosreport-$node.tar.xz not deleting file"
-        exit 1
+        return 1
     fi
 
     # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
     chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
 
+    sleep 1
     # Delete the tar.xz file from the remote node
     oc debug "node/$node" -- chroot /host bash -c "rm -rf $TMPDIR"
 }
@@ -140,12 +151,7 @@ echo "Will retrieve SOS reports from nodes ${nodes//$'\n'/ }"
 for node in $nodes; do
     [[ -z "$node" ]] && continue
     # Gather SOS report for the node in background
-    (gather_node_sos "$node")&
+    run_bg gather_node_sos "$node"
 done
 
-# Wait for all processes to complete and check their exit status one by one
-FAILED=0
-for node in $nodes; do
-    wait -n || FAILED=1
-done
-exit $FAILED
+[[ $CALLED -eq 1 ]] && wait_bg

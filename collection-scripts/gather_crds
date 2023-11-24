@@ -1,5 +1,12 @@
 #!/bin/bash
 
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/bg.sh"
+fi
+
+
 # Resource list
 resources=()
 
@@ -8,9 +15,10 @@ do
   resources+=("crd/$i")
 done
 
+echo "Gathering CRDs"
 # Run the collection of resources using must-gather
 for resource in "${resources[@]}"; do
-  /usr/bin/oc adm inspect --dest-dir must-gather "${resource}"
+  run_bg /usr/bin/oc adm inspect --dest-dir must-gather "${resource}"
 done
 
-exit 0
+[[ $CALLED -eq 1 ]] && wait_bg
