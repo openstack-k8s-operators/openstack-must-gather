@@ -7,15 +7,15 @@ if [[ -z "$DIR_NAME" ]]; then
 fi
 
 # Resource list
-resources=()
+apiservices=()
 
 # explicitly adding rabbitmq in the grep because we rely on the rabbitmq-cluster-operator
 for i in $(/usr/bin/oc get apiservices --all-namespaces | grep -E "(openstack|rabbitmq)\.(org|com)" | awk '{ print $1 }')
 do
-  resources+=("$i")
+  apiservices+=("$i")
 done
 
-for resource in "${resources[@]}"; do
+for resource in "${apiservices[@]}"; do
   mkdir -p "$BASE_COLLECTION_PATH"/apiservices/
   run_bg /usr/bin/oc get apiservice "${resource}" -o yaml '>' "${BASE_COLLECTION_PATH}/apiservices/${resource}.yaml"
 done
