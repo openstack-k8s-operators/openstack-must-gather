@@ -31,6 +31,9 @@ get_status() {
     "heat")
         get_heat_status
         ;;
+    "nova")
+        get_nova_status
+        ;;
     *) ;;
     esac
 }
@@ -40,7 +43,6 @@ get_openstack_status() {
     mkdir -p "$BASE_COLLECTION_PATH"/ctlplane
     run_bg ${BASH_ALIASES[os]} endpoint list '>' "$BASE_COLLECTION_PATH"/ctlplane/endpoints
     run_bg ${BASH_ALIASES[os]} service list '>' "$BASE_COLLECTION_PATH"/ctlplane/services
-    run_bg ${BASH_ALIASES[os]} compute service list '>' "$BASE_COLLECTION_PATH"/ctlplane/compute_service_list
     run_bg ${BASH_ALIASES[os]} network agent list '>' "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
 }
 
@@ -85,6 +87,17 @@ get_heat_status() {
     local HEAT_PATH="$BASE_COLLECTION_PATH/ctlplane/heat"
     mkdir -p "$HEAT_PATH"
     ${BASH_ALIASES[os]} orchestration service list > "$HEAT_PATH"/service_list
+}
+
+# Nova service gathering - sevices, hypervisors, cells, host mappings, allocation audit
+get_nova_status() {
+    local NOVA_PATH="$BASE_COLLECTION_PATH/ctlplane/nova"
+    mkdir -p "$NOVA_PATH"
+    run_bg ${BASH_ALIASES[os]} compute service list '>' "$NOVA_PATH"/service_list
+    run_bg ${BASH_ALIASES[os]} hypervisor list '>' "$NOVA_PATH"/hypervisor_list
+    run_bg /usr/bin/oc -n openstack exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_cells '>' "$NOVA_PATH"/cell_list
+    run_bg /usr/bin/oc -n openstack exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_hosts '>' "$NOVA_PATH"/host_list
+    run_bg ${BASH_ALIASES[os]} aggregate list --long '>' "$NOVA_PATH"/aggregate_list
 }
 
 # first we gather generic status of the openstack ctlplane
