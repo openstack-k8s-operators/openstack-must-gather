@@ -28,6 +28,9 @@ get_status() {
     "cinder")
         get_cinder_status
         ;;
+    "heat")
+        get_heat_status
+        ;;
     *) ;;
     esac
 }
@@ -75,6 +78,13 @@ get_cinder_status() {
     run_bg ${BASH_ALIASES[os]} --os-volume-api-version 3.12 volume summary --all-projects '>' "$CINDER_PATH"/total_volumes_list
     # Add --fit once we have https://review.opendev.org/c/openstack/python-openstackclient/+/895971
     run_bg ${BASH_ALIASES[os]} volume backend pool list --long '>' "$CINDER_PATH"/pool_list
+}
+
+# Heat service gathering - services
+get_heat_status() {
+    local HEAT_PATH="$BASE_COLLECTION_PATH/ctlplane/heat"
+    mkdir -p "$HEAT_PATH"
+    ${BASH_ALIASES[os]} orchestration service list > "$HEAT_PATH"/service_list
 }
 
 # first we gather generic status of the openstack ctlplane
