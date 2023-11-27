@@ -6,6 +6,7 @@ source "${DIR_NAME}/common.sh"
 # get SOS Reports first, as they are the slowest to run and will benefit most
 # of the parallel execution
 source "${DIR_NAME}/gather_sos"
+source "${DIR_NAME}/gather_edpm_sos"
 
 # get nodes information
 source "${DIR_NAME}/gather_nodes"

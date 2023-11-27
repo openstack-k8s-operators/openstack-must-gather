@@ -2,7 +2,7 @@ FROM quay.io/openshift/origin-must-gather:4.13.0 as builder
 
 FROM quay.io/centos/centos:stream9
 
-RUN dnf update -y && dnf install xz rsync python3-pyyaml -y && dnf clean all
+RUN dnf update -y && dnf install xz rsync python3-pyyaml openssh-clients -y && dnf clean all
 
 COPY --from=builder /usr/bin/oc /usr/bin/oc
 
