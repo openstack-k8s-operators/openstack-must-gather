@@ -1,0 +1,10 @@
+# See the OWNERS docs at https://go.k8s.io/owners
+approvers:
+  - ci-approvers
+  - mustgather-approvers
+  - openstack-approvers
+
+reviewers:
+  - ci-approvers
+  - mustgather-approvers
+  - openstack-approvers
