@@ -8,33 +8,29 @@ if [[ -z "$DIR_NAME" ]]; then
 fi
 
 # Resource list
-resources=()
+crs=()
 
 # explictly adding rabbit in the grep because it's not part of the openstack
 # umbrella and we rely on the upstream rabbitmq-cluster-operator
 for i in $(/usr/bin/oc get crd | grep -E "(openstack|rabbitmq)\.(org|com)" | awk '{print $1}')
 do
-  resources+=("$i")
+  crs+=("$i")
 done
 
 # explicitly adding Metal3 BareMetalHosts
-resources+=("baremetalhosts.metal3.io")
+crs+=("baremetalhosts.metal3.io")
 
 # we use nested loops to nicely output objects partitioned per namespace, kind
 echo "Gathering CRs"
-for resource in "${resources[@]}"; do
-  /usr/bin/oc get "${resource}" --all-namespaces -o custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace --no-headers 2> /dev/null | \
+for res in "${crs[@]}"; do
+  /usr/bin/oc get "${res}" --all-namespaces -o custom-columns=NAME:.metadata.name,NAMESPACE:.metadata.namespace --no-headers 2> /dev/null | \
   while read -r ocresource; do
     ocobject=$(echo "$ocresource" | awk '{print $1}')
     ocproject=$(echo "$ocresource" | awk '{print $2}')
-    if [ -z "${ocproject}" ]||[ "${ocproject}" == "<none>" ]; then
-      object_collection_path=${BASE_COLLECTION_PATH}/cluster-scoped-resources/${resource}
+    if [ -n "${ocproject}" ] && [ "${ocproject}" != "<none>" ]; then
+      object_collection_path=${BASE_COLLECTION_PATH}/namespaces/${ocproject}/crs/${res}
       mkdir -p "${object_collection_path}"
-      run_bg /usr/bin/oc get "${resource}" -o yaml "${ocobject}" '>' "${object_collection_path}/${ocobject}.yaml"
-    else
-      object_collection_path=${BASE_COLLECTION_PATH}/namespaces/${ocproject}/crs/${resource}
-      mkdir -p "${object_collection_path}"
-      run_bg /usr/bin/oc get "${resource}" -n "${ocproject}" -o yaml "${ocobject}" '>' "${object_collection_path}/${ocobject}.yaml"
+      run_bg /usr/bin/oc get "${res}" -n "${ocproject}" -o yaml "${ocobject}" '>' "${object_collection_path}/${ocobject}.yaml"
     fi
   done
 done

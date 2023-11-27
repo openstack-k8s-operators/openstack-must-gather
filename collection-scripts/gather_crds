@@ -8,17 +8,19 @@ fi
 
 
 # Resource list
-resources=()
+crds=()
 
 for i in $(/usr/bin/oc get crd | grep openstack.org | awk '{print $1}')
 do
-  resources+=("crd/$i")
+  crds+=("$i")
 done
 
 echo "Gathering CRDs"
+mkdir -p "$BASE_COLLECTION_PATH"/crd
+
 # Run the collection of resources using must-gather
-for resource in "${resources[@]}"; do
-  run_bg /usr/bin/oc adm inspect --dest-dir must-gather "${resource}"
+for resource in "${crds[@]}"; do
+  run_bg /usr/bin/oc get crd "$resource" -o yaml > "${BASE_COLLECTION_PATH}/crd/${resource}.yaml"
 done
 
 [[ $CALLED -eq 1 ]] && wait_bg
