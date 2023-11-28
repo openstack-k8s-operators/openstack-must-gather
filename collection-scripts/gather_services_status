@@ -31,6 +31,12 @@ get_status() {
     "heat")
         get_heat_status
         ;;
+    "nova")
+        get_nova_status
+        ;;
+    "placement")
+        get_placement_status
+        ;;
     *) ;;
     esac
 }
@@ -40,7 +46,6 @@ get_openstack_status() {
     mkdir -p "$BASE_COLLECTION_PATH"/ctlplane
     run_bg ${BASH_ALIASES[os]} endpoint list '>' "$BASE_COLLECTION_PATH"/ctlplane/endpoints
     run_bg ${BASH_ALIASES[os]} service list '>' "$BASE_COLLECTION_PATH"/ctlplane/services
-    run_bg ${BASH_ALIASES[os]} compute service list '>' "$BASE_COLLECTION_PATH"/ctlplane/compute_service_list
     run_bg ${BASH_ALIASES[os]} network agent list '>' "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
 }
 
@@ -85,6 +90,29 @@ get_heat_status() {
     local HEAT_PATH="$BASE_COLLECTION_PATH/ctlplane/heat"
     mkdir -p "$HEAT_PATH"
     ${BASH_ALIASES[os]} orchestration service list > "$HEAT_PATH"/service_list
+}
+
+# Nova service gathering - sevices, hypervisors, cells, host mappings, allocation audit
+get_nova_status() {
+    local NOVA_PATH="$BASE_COLLECTION_PATH/ctlplane/nova"
+    mkdir -p "$NOVA_PATH"
+    run_bg ${BASH_ALIASES[os]} compute service list '>' "$NOVA_PATH"/service_list
+    run_bg ${BASH_ALIASES[os]} hypervisor list '>' "$NOVA_PATH"/hypervisor_list
+    run_bg /usr/bin/oc -n openstack exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_cells '>' "$NOVA_PATH"/cell_list
+    run_bg /usr/bin/oc -n openstack exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_hosts '>' "$NOVA_PATH"/host_list
+    run_bg ${BASH_ALIASES[os]} aggregate list --long '>' "$NOVA_PATH"/aggregate_list
+}
+
+# Placement service gathering - capacity overview
+get_placement_status() {
+    local PLACEMENT_PATH="$BASE_COLLECTION_PATH/ctlplane/placement"
+    mkdir -p "$PLACEMENT_PATH"
+    # NOTE(gibi): this gives us a very simple resource capacity view of the
+    # cluster. It is intentionally uses 1 MB RAM query to get one candidate
+    # from each compute
+    run_bg ${BASH_ALIASES[os]} allocation candidate list --resource MEMORY_MB=1 --max-width 200 -c "'resource provider'" -c "'inventory used/capacity'" -c "traits" '>' "$PLACEMENT_PATH"/allocation_candidate_list
+    run_bg ${BASH_ALIASES[os]} resource class list '>' "$PLACEMENT_PATH"/resource_class_list
+    run_bg ${BASH_ALIASES[os]} trait list '>' "$PLACEMENT_PATH"/trait_list
 }
 
 # first we gather generic status of the openstack ctlplane
