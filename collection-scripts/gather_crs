@@ -1,5 +1,5 @@
 #!/bin/bash
-
+# test
 # When called from the shell directly
 if [[ -z "$DIR_NAME" ]]; then
     CALLED=1
