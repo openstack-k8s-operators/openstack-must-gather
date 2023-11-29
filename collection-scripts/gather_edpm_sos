@@ -74,13 +74,14 @@ gather_edpm_sos () {
 
     echo "Retrieving SOS Report for ${node}"
     mkdir -p "${SOS_PATH_NODES}/sosreport-$node"
-    SSH sudo "cat ${TMPDIR}/*.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf -
+    SSH sudo "cat ${TMPDIR}/*.tar.xz" | tee "${SOS_PATH_NODES}/sosreport-$node.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf -
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
         echo "Failed to download and decompress sosreport-$node.tar.xz not deleting file"
         return 1
     fi
+    rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
 
     # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
     chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
