@@ -120,7 +120,7 @@ And finally, from  inside the container shell we let the `oc adm must-gather`
 command complete, optionally running everything to ensure we haven't
 inadvertently broken anything in the process:
 
-```bash
+```sh
 sh-5.1# gather
 sh-5.1# rm /tmp/rm-to-finish-gathering
 ```
