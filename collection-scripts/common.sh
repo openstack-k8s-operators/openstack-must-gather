@@ -13,6 +13,12 @@ declare -a DEFAULT_NAMESPACES=(
 )
 export DEFAULT_NAMESPACES
 
+declare -a ADDITIONAL_NAMESPACES=(
+    "kuttl"
+    "sushy-emulator"
+)
+export ADDITIONAL_NAMESPACES
+
 METALLB_NAMESPACE=${METALLB_NAMESPACE:-"metallb-system"}
 
 NAMESPACE_PATH=${BASE_COLLECTION_PATH}/namespaces
