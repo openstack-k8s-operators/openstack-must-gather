@@ -13,12 +13,6 @@ declare -a DEFAULT_NAMESPACES=(
 )
 export DEFAULT_NAMESPACES
 
-declare -a ADDITIONAL_NAMESPACES=(
-    "kuttl"
-    "sushy-emulator"
-)
-export ADDITIONAL_NAMESPACES
-
 METALLB_NAMESPACE=${METALLB_NAMESPACE:-"metallb-system"}
 
 NAMESPACE_PATH=${BASE_COLLECTION_PATH}/namespaces
@@ -93,11 +87,27 @@ function get_resources {
     done
 }
 
+function expand_ns {
+    if [ "${ADDITIONAL_NAMESPACES-unset}" = "unset" ]; then
+        return
+    else
+        IFS=',' read -r -a ADDITIONAL_NAMESPACES <<< "$ADDITIONAL_NAMESPACES"
+    fi
+    # instead of merging the two array of NAMESPACES using a form like:
+    # T=("${DEFAULT_NAMESPACES[@]}" "${ADDITIONAL_NAMESPACES[@]}", we
+    # call the generic expand_ns function that is supposed to match the
+    # key passed as input and include all the namespaces associated with
+    # that key
+    for ns in "${ADDITIONAL_NAMESPACES[@]}"; do
+        add_ns "$ns"
+    done
+}
+
 # Generic function to expand the DEFAULT_NAMESPACES array where we need to
 # check resources.
 # e.g. calling <expand_ns "kuttl"> will grow the DEFAULT_NAMESPACES array
-# adding all kuttl NS that can be found
-function expand_ns {
+# adding **all** kuttl NS that can be found
+function add_ns {
     local expandkey="$1"
     [ -z "$1" ] && return
     for i in $(oc get project -o=custom-columns=NAME:.metadata.name --no-headers | awk -v k="$expandkey" '$0 ~ k {print $1}'); do
