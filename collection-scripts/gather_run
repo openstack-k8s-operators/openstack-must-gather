@@ -24,10 +24,9 @@ source "${DIR_NAME}/gather_crs"
 source "${DIR_NAME}/gather_webhooks"
 
 # expand the existing NAMESPACES including some relevant for OpenStack CI
-# if they exist we can gather the associated resources and logs
-for ns in "${ADDITIONAL_NAMESPACES[@]}"; do
-    expand_ns "$ns"
-done
+# passed as input: if they exist we can gather the associated resources and
+# logs
+expand_ns
 
 # Trigger Guru Meditation Reports so we then have then in the service logs
 source "${DIR_NAME}/gather_trigger_gmr"
