@@ -1,5 +1,5 @@
 - project:
     github-check:
       jobs:
-      - noop
+      - podified-multinode-edpm-deployment-crc
     name: openstack-k8s-operators/openstack-must-gather
