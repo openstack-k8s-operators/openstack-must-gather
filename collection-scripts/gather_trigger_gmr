@@ -22,6 +22,9 @@ trigger_gmr() {
     "cinder")
         cinder_trigger_gmr
         ;;
+    "nova")
+        nova_trigger_gmr
+        ;;
     *) ;;
     esac
 
@@ -42,6 +45,46 @@ cinder_trigger_gmr() {
         svctype="${line#* }"
         run_bg $oce $podname -c $svctype -- touch /etc/cinder
     done <<< "$svcs"
+}
+
+
+nova_trigger_gmr() {
+    # https://docs.openstack.org/nova/latest/reference/gmr.html
+    echo "Trigger GMR for Nova services"
+
+    pods=`$oc get pod -l 'service in (nova-scheduler, nova-conductor, nova-novncproxy)' -o=custom-columns=N:.metadata.name --no-headers | tr '\n' ' '`
+    for pod in $pods
+    do
+        run_bg $oce $pod -- touch /var/lib/nova
+    done
+
+    apis=`$oc get pod -l service=nova-api -o=custom-columns=N:.metadata.name --no-headers | tr '\n' ' '`
+    for api in $apis
+    do
+        # The GMR report will be emitted not to the normal API log
+        # but the log of the apache process but must gather pulls both
+        # containers' log so we are good.
+        run_bg $oce -c nova-api-api $api -- touch /var/lib/nova
+    done
+
+    for api in $apis
+    do
+        # NOTE(gibi): This is a hack. The nova-api uses eventlet.
+        # All threads including the GMR file monitoring one are frozen by
+        # apache if there is no active request to handle. The requests from
+        # the k8s probes are not enough as they are handled without any
+        # eventlet yielding. So the GMR monitoring thread is not woken up.
+        # Therefore we are sending an API request that needs DB access as such
+        # access will involve an eventlet yield letting the GMR monitoring
+        # thread a chance to run and detect the trigger.
+        # If we have multiple nova-api replicas we are relying on the assumed
+        # round robin scheduling of the k8s service to the backends to send
+        # an API request to each nova-api pod in this loop.
+        run_bg $oce openstackclient -- openstack compute service list
+    done
+
+    # NOTE(gibi): I failed to trigger GMR in nova-metadata so that remains
+    # as an investigation for later.
 }
 
 
