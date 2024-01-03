@@ -56,6 +56,9 @@ declare -a OSP_SERVICES=(
     "barbican"
     "dataplane"
     "ceilometer"
+    "metric-storage"
+    "aodh"
+    "logging"
 )
 export OSP_SERVICES
 
