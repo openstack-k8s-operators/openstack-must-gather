@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# When called from the shell directly
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
+
+# Default DB DUMP Option
+DB_OPT="--single-transaction --complete-insert --skip-lock-tables --lock-tables=0"
+DB_DUMP=${BASE_COLLECTION_PATH}/dbs
+
+function dump_db {
+    local dbpod="$1"
+    local ns="$2"
+    local dbpass="$3"
+    local dbname="$4"
+    local dump="${4:-openstack_databases}"
+    run_bg /usr/bin/oc -n $ns rsh -c galera $dbpod mysqldump -uroot -p$dbpass $DB_OPT $dbname > "$DB_DUMP"/$dump.sql
+}
+
+# If unset or an empty string return/exit
+if [ "${OPENSTACK_DATABASES-unset}" = "unset" ] || [[ -z "${OPENSTACK_DATABASES}" ]]; then
+    # If no databases options are passed, skip the database dump
+    echo "Skip Database dump: an empty list is provided"
+    [[ $CALLED -eq 1 ]] && exit 0
+    exit 0
+fi
+
+# Create the db_dump directory in the BASE_COLLECTION_PATH
+mkdir -p "$DB_DUMP"
+data=$(/usr/bin/oc get openstackcontrolplane --all-namespaces -o go-template='{{range $ins,$service := .items}}{{printf "%s %s\n" $service.metadata.namespace $service.spec.secret}}{{end}}')
+while read -r namespace secret; do
+    [[ -z "$namespace" || -z "$secret" ]] && break
+    # get the pwd used to run mysqldump from the galera pod
+    dbpass=$(/usr/bin/oc get -n $namespace secret/"$secret" -o go-template='{{ index .data "AdminPassword" | base64decode }}')
+    # select the (first) galera pod (and exclude the galera-cellX database services)
+    dbpod="$(/usr/bin/oc -n $namespace get pod -l app=galera --no-headers -o=custom-columns=NAME:.metadata.name | grep -v cell | tr '\n' ' ' | awk '{print $1}')"
+    if [[ "$OPENSTACK_DATABASES" == "ALL" ]]; then
+        DB_OPT="$DB_OPT --all-databases"
+        # dump all databases
+        dump_db "$dbpod" "$namespace" "$dbpass"
+    else
+        # Convert the database list to an array
+        IFS=',' read -r -a OPENSTACK_DATABASES <<< "$OPENSTACK_DATABASES"
+        # for each service dump the associated database (if exists)
+        for service in "${OPENSTACK_DATABASES[@]}"; do
+            dump_db "$dbpod" "$namespace" "$dbpass" "$service"
+        done
+    fi
+done <<< "$data"
+[[ $CALLED -eq 1 ]] && wait_bg

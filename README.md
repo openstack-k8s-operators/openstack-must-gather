@@ -53,6 +53,11 @@ This is the list of available environmental variables:
 - `SOS_EDPM_PROFILES`: List of sos report profiles to use. Empty string to run
   them all. Defaults to: `system,storage,virt`
 - `SOS_EDPM_PLUGINS`: List of sos report plugins to use. This is optional.
+- `OPENSTACK_DATABASES`: comma separated list of OpenStack databases that should
+  be dumped. It is possible to set it to `ALL` and dump all databases. By default
+  this env var is unset, hence the database dump is skipped.
+- `ADDITIONAL_NAMESPACES`: comma separated list of additional namespaces where
+  we want to gather the associated resources.
 
 ## Development
 
