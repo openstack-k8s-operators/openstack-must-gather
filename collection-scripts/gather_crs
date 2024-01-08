@@ -10,10 +10,9 @@ fi
 # Resource list
 crs=()
 
-# Explictly adding rabbit in the grep because it's not part of the openstack
-# umbrella and we rely on the upstream rabbitmq-cluster-operator.
+# Explictly adding rabbit in the grep because its CRD is named with a different domain.
 # Also adding monitoring.rhobs, because telemetry uses observability-operator
-# for deploying a MonitoringStack for storing and scraping metrics.
+# to deploy a `MonitoringStack` for storing and scraping metrics.
 for i in $(/usr/bin/oc get crd | grep -E "(openstack|rabbitmq|monitoring)\.(org|com|rhobs)" | awk '{print $1}')
 do
   crs+=("$i")
