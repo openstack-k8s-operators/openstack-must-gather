@@ -50,8 +50,9 @@ This is the list of available environmental variables:
 - `SOS_EDPM`: Comma separated list of edpm nodes to gather SOS reports from,
   empty string skips sos report gathering. Accepts keyword all to gather all
   nodes. eg: `edpm-compute-0,edpm-compute-1`
-- `SOS_EDPM_PROFILES`: list of sos report profiles to use. Empty string to run
+- `SOS_EDPM_PROFILES`: List of sos report profiles to use. Empty string to run
   them all. Defaults to: `system,storage,virt`
+- `SOS_EDPM_PLUGINS`: List of sos report plugins to use. This is optional.
 
 ## Development
 

@@ -34,12 +34,16 @@ else
     IFS=',' read -r -a SOS_EDPM <<< "$SOS_EDPM"
 fi
 
-# Default to some plugins if SOS_EDPM_PROFILES is not set
+# Default to some profiles if SOS_EDPM_PROFILES is not set
 SOS_EDPM_PROFILES="${SOS_EDPM_PROFILES-system,storage,virt}"
 if [[ -n "$SOS_EDPM_PROFILES" ]]; then
     SOS_LIMIT="-p $SOS_EDPM_PROFILES"
 fi
 
+# Add plugins if SOS_EDPM_PLUGINS is nonzero
+if [[ -n "$SOS_EDPM_PLUGINS" ]]; then
+    SOS_LIMIT="$SOS_LIMIT -o $SOS_EDPM_PLUGINS"
+fi
 
 SSH () {
     ssh -i "$key_path" "${username}@${address}" -o StrictHostKeyChecking=accept-new "$@"
