@@ -56,5 +56,8 @@ source "${DIR_NAME}/gather_network"
 # get SVC status (inspect ctlplane)
 source "${DIR_NAME}/gather_services_status"
 
+# dump the openstack database
+source "${DIR_NAME}/gather_db"
+#
 # Wait for background tasks to complete
 wait_bg
