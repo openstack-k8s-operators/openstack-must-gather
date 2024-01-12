@@ -3,7 +3,6 @@
 import unittest
 import os
 import yaml
-import base64
 from mask import SecretMask
 
 # sample directory used to load yaml files
@@ -38,7 +37,7 @@ class TestSecretMask(unittest.TestCase):
                 actual = self._read_sample(os.path.join(root, f))
                 # Mask secret by processing the data section
                 # of the yaml file we got
-                s = SecretMask(os.path.join(root, f))
+                s = SecretMask(os.path.join(root, f), False)
                 expected = s._process_data(actual['data'])
                 """
                 files are named secret{1, 2, 3, ... N}: for these secrets
