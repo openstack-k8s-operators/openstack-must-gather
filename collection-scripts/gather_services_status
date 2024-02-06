@@ -37,6 +37,9 @@ get_status() {
     "placement")
         get_placement_status
         ;;
+    "ironic")
+	get_ironic_status
+	;;
     *) ;;
     esac
 }
@@ -113,6 +116,25 @@ get_placement_status() {
     run_bg ${BASH_ALIASES[os]} allocation candidate list --resource MEMORY_MB=1 --max-width 200 -c "'resource provider'" -c "'inventory used/capacity'" -c "traits" '>' "$PLACEMENT_PATH"/allocation_candidate_list
     run_bg ${BASH_ALIASES[os]} resource class list '>' "$PLACEMENT_PATH"/resource_class_list
     run_bg ${BASH_ALIASES[os]} trait list '>' "$PLACEMENT_PATH"/trait_list
+}
+
+# Ironic service gathering - nodes, ports, conductors if we can get them.
+get_ironic_status() {
+    local IRONIC_PATH="$BASE_COLLECTION_PATH/ctlplane/ironic"
+    mkdir -p "$IRONIC_PATH"
+    # NOTE(TheJulia): The idea here is to try and collect information visible,
+    # as Ironic has filtering in place on all project scoped requests,
+    # as agreed by the Ironic community.
+    run_bg ${BASH_ALIASES[os]} baremetal node list --long '>' "$IRONIC_PATH"/node_list
+    run_bg ${BASH_ALIASES[os]} baremetal port list --long '>' "$IRONIC_PATH"/port_list
+    run_bg ${BASH_ALIASES[os]} baremetal portgroup list --long '>' "$IRONIC_PATH"/portgroup_list
+    run_bg ${BASH_ALIASES[os]} baremetal volume connector list --long '>' "$IRONIC_PATH"/volume_connector_list
+    run_bg ${BASH_ALIASES[os]} baremetal volume target list --long '>' "$IRONIC_PATH"/volume_target_list
+    run_bg ${BASH_ALIASES[os]} baremetal allocation list --long '>' "$IRONIC_PATH"/allocation_list
+    # Driver/Conductor lists are restricted endpoints by default since
+    # they provide insight into the overall infrastucture which would
+    # be inappropriate in a public cloud context and we don't inherently
+    # have the required elevated rights "out of the" box to gather it.
 }
 
 # first we gather generic status of the openstack ctlplane
