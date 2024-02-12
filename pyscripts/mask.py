@@ -36,7 +36,7 @@ PROTECT_KEYS = [
     "ldap_dns_password", "neutron_admin_password", "admin_token",
     "ca_password" "hdfs_ssh_pw", "maprfs_ssh_pw", "powervm_mgr_passwd",
     "virtual_power_host_pass", "vnc_password", "s3_secret_key",
-    "ca_private_key_passphrase", "heartbeat_key",
+    "ca_private_key_passphrase", "heartbeat_key", "DatabasePassword",
     "server_certs_key_passphrase",
 ]
 
