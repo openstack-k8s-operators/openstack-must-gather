@@ -38,8 +38,14 @@ get_status() {
         get_placement_status
         ;;
     "ironic")
-	get_ironic_status
-	;;
+        get_ironic_status
+        ;;
+    "aodh")
+        get_aodh_status
+        ;;
+    "ceilometer")
+        get_ceilometer_status
+        ;;
     *) ;;
     esac
 }
@@ -135,6 +141,25 @@ get_ironic_status() {
     # they provide insight into the overall infrastucture which would
     # be inappropriate in a public cloud context and we don't inherently
     # have the required elevated rights "out of the" box to gather it.
+}
+
+# Aodh service gathering - alarms
+get_aodh_status() {
+    local AODH_PATH="$BASE_COLLECTION_PATH/ctlplane/aodh"
+    mkdir -p "$AODH_PATH"
+    run_bg ${BASH_ALIASES[os]} alarm list '>' "$AODH_PATH"/alarm_list
+}
+
+# Ceilometer, sg-core, prometheus service gathering - metrics
+get_ceilometer_status() {
+    local CEILOMETER_PATH="$BASE_COLLECTION_PATH/ctlplane/ceilometer"
+    if /usr/bin/oc -n openstack get metricstorage metric-storage &> /dev/null; then
+        # For `openstack metric list` command to work we need ceilometer
+        # in the openstack as well as metricstorage deployed
+        # on openshift.
+        mkdir -p "$CEILOMETER_PATH"
+        run_bg ${BASH_ALIASES[os]} metric list --disable-rbac '>' "$CEILOMETER_PATH"/metric_list
+    fi
 }
 
 # first we gather generic status of the openstack ctlplane
