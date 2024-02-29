@@ -46,6 +46,9 @@ get_status() {
     "ceilometer")
         get_ceilometer_status
         ;;
+    "octavia")
+        get_octavia_status
+        ;;
     *) ;;
     esac
 }
@@ -160,6 +163,20 @@ get_ceilometer_status() {
         mkdir -p "$CEILOMETER_PATH"
         run_bg ${BASH_ALIASES[os]} metric list --disable-rbac '>' "$CEILOMETER_PATH"/metric_list
     fi
+}
+
+# Octavia service gathering - loadbalancers,
+get_octavia_status() {
+    local OCTAVIA_PATH="$BASE_COLLECTION_PATH/ctlplane/octavia"
+    mkdir -p "$OCTAVIA_PATH"
+    resources="amphora availabilityzone availabilityzoneprofile flavor flavorprofile healthmonitor l7policy "
+    resources="$resources listener pool provider quota"
+
+    for r in $resources; do
+        run_bg ${BASH_ALIASES[os]} loadbalancer $r list '>' "$OCTAVIA_PATH"/"${r}_list"
+    done;
+
+    run_bg ${BASH_ALIASES[os]} loadbalancer provider list '>' "$OCTAVIA_PATH"/provider_list
 }
 
 # first we gather generic status of the openstack ctlplane
