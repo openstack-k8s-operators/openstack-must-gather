@@ -1,4 +1,4 @@
-FROM quay.io/openshift/origin-must-gather:4.13.0 as builder
+FROM quay.io/openshift/origin-must-gather:4.14.0 as builder
 
 FROM quay.io/centos/centos:stream9
 
