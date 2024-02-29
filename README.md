@@ -58,6 +58,10 @@ This is the list of available environmental variables:
   this env var is unset, hence the database dump is skipped.
 - `ADDITIONAL_NAMESPACES`: comma separated list of additional namespaces where
   we want to gather the associated resources.
+- `DO_NOT_MASK`: This is an option for **CI only** purposes. It's set to 0 by
+  default (and preserves the default behavior required in a production environment).
+  However, if set to 1, it dumps secrets and services config files without masking
+  sensitive data.
 
 ## Development
 

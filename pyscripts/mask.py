@@ -56,7 +56,7 @@ con_regex = r'((%s)\s*://)(\w*):(.*)(@(.*))' % "|".join(CONNECTION_KEYS)
 # within a config file, hence we need to parse keys and detect any potential
 # data that matches the keys we want to protect/mask.
 key_regex = r'(%s)$' % "|".join(PROTECT_KEYS)
-
+conf_file_regex = r'(.*).(conf)$'
 regexes = [gen_regex, con_regex]
 
 
@@ -69,8 +69,10 @@ class SecretMask():
     by the defined pattern.
     """
 
-    def __init__(self, path: Optional[str] = None) -> None:
+    def __init__(self, path: Optional[str] = None,
+                 dump: bool = False) -> None:
         self.path: Union[str, None] = path
+        self.dump: bool = dump
 
     def mask(self) -> bool:
         """
@@ -123,6 +125,18 @@ class SecretMask():
         except (IOError, yaml.YAMLError) as e:
             print(f"Error while writing the masked file: {e}")
 
+    def _writeFile(self, path: str, encoded_secret: Any) -> None:
+        """
+        Dump the masked secret containing a config file to a given
+        path.
+        """
+        try:
+            assert path is not None
+            with open(path, 'w') as f:
+                f.write(encoded_secret)
+        except IOError as e:
+            print(f"Error while writing the masked file: {e}")
+
     def _apply_regex(self, decoded_secret: str) -> str:
         """
         For each decoded_secret passed as argument, try
@@ -159,6 +173,8 @@ class SecretMask():
                 masked = MASK_STR
             else:
                 masked = self._apply_regex(base64.b64decode(v).decode())
+                if self.dump and re.search(conf_file_regex, k):
+                    self._writeFile('{}-{}'.format(self.path, k), masked)
             # re-encode the entry
             d[k] = base64.b64encode(masked.encode()).decode()
         return d
@@ -176,6 +192,9 @@ def parse_opts(argv: Any) -> Any:
     parser.add_argument('-d', '--dir', metavar='DIR_PATH',
                         help="Path of the directory where the masking \
                         should be applied")
+    parser.add_argument('--dump-conf', action='store_true',
+                        help="Dump the config files retrieved for a given \
+                        service")
     opts = parser.parse_args(argv[1:])
     return opts
 
@@ -189,7 +208,7 @@ if __name__ == '__main__':
         # argument and process all the files found in
         # that directory
         for root, subdirs, files in os.walk(OPTS.dir):
-            [SecretMask(os.path.join(root, f)).mask() for f in files]
+            [SecretMask(os.path.join(root, f), OPTS.dump_conf).mask() for f in files]
 
     if OPTS.path is not None and os.path.exists(OPTS.path):
-        SecretMask(OPTS.path).mask()
+        SecretMask(OPTS.path, OPTS.dump_conf).mask()
