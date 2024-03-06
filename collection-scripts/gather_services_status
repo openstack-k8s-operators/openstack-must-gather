@@ -133,7 +133,7 @@ get_ironic_status() {
     # as agreed by the Ironic community.
     run_bg ${BASH_ALIASES[os]} baremetal node list --long '>' "$IRONIC_PATH"/node_list
     run_bg ${BASH_ALIASES[os]} baremetal port list --long '>' "$IRONIC_PATH"/port_list
-    run_bg ${BASH_ALIASES[os]} baremetal portgroup list --long '>' "$IRONIC_PATH"/portgroup_list
+    run_bg ${BASH_ALIASES[os]} baremetal port group list --long '>' "$IRONIC_PATH"/port_group_list
     run_bg ${BASH_ALIASES[os]} baremetal volume connector list --long '>' "$IRONIC_PATH"/volume_connector_list
     run_bg ${BASH_ALIASES[os]} baremetal volume target list --long '>' "$IRONIC_PATH"/volume_target_list
     run_bg ${BASH_ALIASES[os]} baremetal allocation list --long '>' "$IRONIC_PATH"/allocation_list
