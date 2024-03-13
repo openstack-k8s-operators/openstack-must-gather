@@ -63,6 +63,150 @@ This is the list of available environmental variables:
   However, if set to 1, it dumps secrets and services config files without masking
   sensitive data.
 
+### Inspect gathered data
+
+openstack-must-gather is capable of getting both the kubernetes resources
+defined in the collection-scripts, and the sos-reports associated with both the
+CoreOS nodes and the EDPM ones.
+When the `openstack-must-gather` execution ends, a directory containing all the
+gathered resources is generated, and in general it contains:
+
+1. **Global resources**: useful to get some context about the status of the
+   openshift cluster and the openstack deployed resources. These resources
+   include `crds`, `apiservices`, `csvs`, `packagemanifests`, `webhooks` and
+   `network` related informations like `nncp`, `nnce`, `IPAddressPool`, and so
+   forth
+
+2. **Namespaced resources**: critical to get the status of the `OpenStack`
+   cluster and troubleshoot any problematic situation
+
+3. **sos-reports**: gathered from both the `CoreOS` nodes that are part of the
+   `OpenShift` cluster, and the `EDPM` nodes in case are part of the cluster; the
+   information to connect to the EDPM nodes is retrieved by the
+   `OpenStackDataplaneNodeSets` CR, and the resulting sos-report is retrieved
+   from the remote nodes and downloaded in the current must-gather directory
+
+4. **OpenStack Ctlplane Services**: commands run through the `openstack-cli` to
+   check the relevant resources generated within the OpenStack cluster (`endpoint
+   list`, `networks`, `subnets`, `registered services`, etc)
+
+A generic output of the `openstack-must-gather` execution looks like the
+following:
+
+
+```bash
++-----------------------------------+
+|     .                             |                                    +-----------------------------+
+|     ├── apiservices               |                                    |    ctlplane/neutron/        |
+|     ├── crd                       |                                    |    ├── agent_list           |
+|     ├── csv                       |       (control plane resources)    |    ├── extension_list       |
+|     ├── ctlplane                  |------------------------------------|    ├── floating_ip_list     |
+|     │   ├── neutron               |                                    |    ├── network_list         |
+|     │   ├── nova                  |-----------------                   |    ├── port_list            |
+|     │   └── placement             |                |                   |    ├── router_list          |
+|     ├── dbs                       |   +---------------------------+    |    ├── security_group_list  |
+|     ├── namespaces                |   |   namespaces/openstack/   |    |    └── subnet_list          |
+|     │   ├── cert-manager          |   |    ├── all_resources.log  |    +-----------------------------+
+|     │   ├── openshift-machine-api |   |    ├── buildconfig        |-----------------------------------
+|     │   ├── openshift-nmstate     |   |    ├── configmaps         |                                  |
+|     │   ├── openstack             |   |    ├── cronjobs           |   +--------------------------------------------------------------------+
+|     │   └── openstack-operators   |   |    ├── crs                |   |    namespaces/openstack/secrets/glance/                            |
+|     ├── network                   |   |    ├── daemonset          |   |    ├── cert-glance-default-public-route.yaml                       |
+|     │   ├── ipaddresspools        |   |    ├── deployments        |   |    ├── glance-config-data.yaml                                     |
+|     │   ├── nnce                  |   |    ├── events.log         |   |    ├── glance-config-data.yaml-00-config.conf                      |
+|     │   └── nncp                  |   |    ├── installplans       |   |    ├── glance-default-single-config-data.yaml                      |
+|     ├── nodes                     |   |    ├── jobs               |   |    ├── glance-default-single-config-data.yaml-00-config.conf       |
+|     ├── sos-reports               |   |    ├── nad.log            |   |    ├── glance-default-single-config-data.yaml-10-glance-httpd.conf |
+|     │   ├── _all_nodes            |   |    ├── pods               |   |    ├── glance-default-single-config-data.yaml-httpd.conf           |
+|     │   ├── barbican              |   |    ├── pvc.log            |   |    ├── glance-default-single-config-data.yaml-ssl.conf             |
+|     │   ├── ceilometer            |   |    ├── replicaset         |   |    └── glance-scripts.yaml                                         |
+|     │   ├── glance                |   |    ├── routes             |   +--------------------------------------------------------------------+
+|     │   ├── keystone              |   |    ├── secrets            |                                  |
+|     │   ├── neutron               |   |    ├── services           |   +--------------------------------------------------------------------+
+|     │   ├── nova                  |   |    ├── statefulsets       |   | Note: if DO_NOT_MASK is passed in CI, secrets are dumped without   |
+|     │   ├── ovn                   |   |    └── subscriptions      |   |       hiding any sensitive information.                            |
+|     │   ├── ovs                   |   +---------------------------+   +--------------------------------------------------------------------+
+|     │   ├── placement             |
+|     │   └── swift                 |
+|     └── webhooks                  |
+|         ├── mutating              |
+|         └── validating            |
++-----------------------------------+
+```
+
+In a troubleshooting session, however, it's critical to check and analyze not
+only `Secrets` and services config files, but also the `CRs` associated with
+each service and the `Pod` logs.
+These are still namespaced resources, and they can be found in the CRs and Pods
+directories.
+Other than that, for each namespace some generic informations is collected. In
+particular the `openstack-must-gather` tool is able to retrieve:
+
+1. `Events` recorded for the current namespace
+2. `Network Attachment Definitions`
+3. `PVCs` attached to the deployed Pods
+4. A picture of the namespaces in terms of deployed resources (`all_resources.log`)
+
+```bash
++---------------------------+
+| namespaces/openstack/     | ------------------------------------
+|    ├── buildconfig        |                                    |
+|    ├── cronjobs           |          +--------------------------------------------------------+
+|    ├── crs                |          |   namespaces/openstack/crs/                            |
+|    ├── daemonset          |          |   ├── barbicanapis.barbican.openstack.org              |
+|    ├── deployments        |          |   ├── barbicankeystonelisteners.barbican.openstack.org |
+|    ├── events.log         |          |   ├── barbicans.barbican.openstack.org                 |
+|    ├── installplans       |          |   ├── barbicanworkers.barbican.openstack.org           |
+|    ├── jobs               |          |   ...                                                  |
+|    ├── nad.log            |          |   ...                                                  |
+|    ├── pods               |          |   ├── glanceapis.glance.openstack.org                  |
+|    ├── all_resources.log  |          |          └── glance-default-single.yaml                |
+|    ├── configmaps         |          |   ├── glances.glance.openstack.org                     |
+|    ├── pvc.log            |          |          └── glance.yaml                               |
+|    ├── replicaset         |          |   ├── keystoneapis.keystone.openstack.org              |
+|    ├── routes             |          |   ├── keystoneendpoints.keystone.openstack.org         |
+|    ├── secrets            |          |   ├── keystoneservices.keystone.openstack.org          |
+|    ├── services           |          |   ...                                                  |
+|    ├── statefulsets       |          |   ├── telemetries.telemetry.openstack.org              |
+|    └── subscriptions      |          |   └── transporturls.rabbitmq.openstack.org             |
++---------------------------+          +--------------------------------------------------------+
+```
+
+As depicted in the schema above, the same pattern applies to the Pod resources.
+For each `Pod` the openstack-must-gather tool is able to retrieve the
+description and the associated logs (including `-previous` in case the Pod is
+in a `CrashLookBackoff` status).
+
+```bash
++---------------------------+
+| namespaces/openstack/     | ------------------------------------
+|    ├── buildconfig        |                                    |
+|    ├── cronjobs           |          +-----------------------------------------------------------+
+|    ├── crs                |          |   namespaces/openstack/pods/glance-dbpurge-28500481-f4jk9 |
+|    ├── daemonset          |          |   ├── glance-dbpurge-28500481-f4jk9-describe              |
+|    ├── deployments        |          |   └── logs                                                |
+|    ├── events.log         |          |       └── glance-dbpurge.log                              |
+|    ├── installplans       |          |   namespaces/openstack/pods/glance-default-single-0       |
+|    ├── jobs               |          |   ├── glance-default-single-0-describe                    |
+|    ├── nad.log            |          |   └── logs                                                |
+|    ├── pods               |          |       ├── glance-api.log                                  |
+|    ├── all_resources.log  |          |       ├── glance-httpd.log                                |
+|    ├── configmaps         |          |       └── glance-log.log                                  |
+|    ├── pvc.log            |          |   namespaces/openstack/pods/glance-default-single-1       |
+|    ├── replicaset         |          |   ├── glance-default-single-1-describe                    |
+|    ├── routes             |          |   └── logs                                                |
+|    ├── secrets            |          |       ├── glance-api.log                                  |
+|    ├── services           |          |       ├── glance-httpd.log                                |
+|    ├── statefulsets       |          |       └── glance-log.log                                  |
+|    └── subscriptions      |          |   namespaces/openstack/pods/glance-default-single-2       |
++---------------------------+          |   ├── glance-default-single-2-describe                    |
+                                       |   └── logs                                                |
+                                       |       ├── glance-api.log                                  |
+                                       |       ├── glance-httpd.log                                |
+                                       |       └── glance-log.log                                  |
+                                       +-----------------------------------------------------------+
+```
+
 ## Development
 
 ### Building container
