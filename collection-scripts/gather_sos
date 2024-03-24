@@ -8,7 +8,7 @@
 #   SOS_ONLY_PLUGINS: list of sos report plugins to use. Empty string to run
 #                     them all. Defaults to: block,cifs,crio,devicemapper,
 #                     devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,
-#                     process,processor,selinux,scsi,udev
+#                     process,processor,selinux,scsi,udev,openstack_edpm
 #
 # TODO: Confirm with GSS the default for SOS_ONLY_PLUGINS
 
@@ -38,7 +38,7 @@ else
 fi
 
 # Default to some plugins if SOS_ONLY_PLUGINS is not set
-SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev}"
+SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev,openstack_edpm}"
 if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
 fi
