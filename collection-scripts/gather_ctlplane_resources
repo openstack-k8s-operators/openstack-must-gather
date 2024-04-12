@@ -18,7 +18,7 @@ function gather_ctlplane_resources {
     # Get the view of the current namespace related resources, including pods
     mkdir -p "${NAMESPACE_PATH}"/"${NS}"
     run_bg /usr/bin/oc -n "${NS}" get all '>' "${NAMESPACE_PATH}/${NS}/all_resources.log"
-    run_bg /usr/bin/oc -n "${NS}" get events '>' "${NAMESPACE_PATH}/${NS}/events.log"
+    run_bg /usr/bin/oc -n "${NS}" get events --sort-by='.lastTimestamp' '>' "${NAMESPACE_PATH}/${NS}/events.log"
     run_bg /usr/bin/oc -n "${NS}" get pvc '>' "${NAMESPACE_PATH}/${NS}/pvc.log"
     run_bg /usr/bin/oc -n "${NS}" get network-attachment-definitions -o yaml '>' "${NAMESPACE_PATH}/${NS}/nad.log"
 
