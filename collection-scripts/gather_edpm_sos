@@ -100,7 +100,7 @@ gather_edpm_sos () {
 }
 
 
-data=$(oc get openstackdataplanenodesets --all-namespaces -o go-template='{{range $indexns,$nodeset := .items}}{{range $index,$node := $nodeset.spec.nodes}}{{printf "%s %s %s %s %s\n" $node.hostName $node.ansible.ansibleHost $nodeset.spec.nodeTemplate.ansible.ansibleUser $nodeset.spec.nodeTemplate.ansibleSSHPrivateKeySecret $nodeset.metadata.namespace}}{{end}}{{end}}')
+data=$(oc get openstackdataplanenodesets --all-namespaces -o go-template='{{range $indexns,$nodeset := .items}}{{range $index,$node := $nodeset.spec.nodes}}{{printf "%s " $node.hostName}}{{if $node.ansible.ansibleHost}}{{printf "%s " $node.ansible.ansibleHost}}{{else}}{{printf "%s " $node.hostName}}{{end}}{{printf "%s %s %s\n" $nodeset.spec.nodeTemplate.ansible.ansibleUser $nodeset.spec.nodeTemplate.ansibleSSHPrivateKeySecret $nodeset.metadata.namespace}}{{end}}{{end}}')
 
 while read -r node address username secret namespace; do
     [[ -z "$node" ]] && continue
