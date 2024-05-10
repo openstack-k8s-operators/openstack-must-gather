@@ -8,11 +8,6 @@
 #   SOS_EDPM_PROFILES: list of sos report profiles to use. Empty string to run
 #                      them all. Defaults to: system,storage,virt
 #
-# TODO: Confirm this can actually ssh into the EDPM nodes besides in the CRC
-#       case.  Worst case we may have to define a Job/Pod with the right
-#       networks to do the work.
-# TODO: Add openstack_edpm to the list once this PR merges and is released
-#       https://github.com/openstack-k8s-operators/openstack-must-gather/pull/18
 
 # When called from the shell directly
 if [[ -z "$DIR_NAME" ]]; then
@@ -99,8 +94,19 @@ gather_edpm_sos () {
     echo "Finished retrieving SOS Report for ${node}"
 }
 
-
-data=$(oc get openstackdataplanenodesets --all-namespaces -o go-template='{{range $indexns,$nodeset := .items}}{{range $index,$node := $nodeset.spec.nodes}}{{printf "%s " $node.hostName}}{{if $node.ansible.ansibleHost}}{{printf "%s " $node.ansible.ansibleHost}}{{else}}{{printf "%s " $node.hostName}}{{end}}{{printf "%s %s %s\n" $nodeset.spec.nodeTemplate.ansible.ansibleUser $nodeset.spec.nodeTemplate.ansibleSSHPrivateKeySecret $nodeset.metadata.namespace}}{{end}}{{end}}')
+data=$(oc get openstackdataplanenodesets --all-namespaces -o json | jq -j '
+    .items[] |
+    .spec.nodes[].hostName as $node |
+    .status.allIPs[$node].ctlplane as $address |
+    .spec.nodeTemplate.ansible.ansibleUser as $username |
+    .spec.nodeTemplate.ansibleSSHPrivateKeySecret as $secret |
+    .metadata.namespace as $namespace |
+    $node, " ",
+    $address, " ",
+    $username, " ",
+    $secret, " ",
+    $namespace, "\n"
+')
 
 while read -r node address username secret namespace; do
     [[ -z "$node" ]] && continue
