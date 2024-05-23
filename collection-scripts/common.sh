@@ -10,6 +10,8 @@ declare -a DEFAULT_NAMESPACES=(
     "openshift-machine-api"
     "cert-manager"
     "openshift-nmstate"
+    "openshift-operators-redhat"
+    "openshift-logging"
 )
 export DEFAULT_NAMESPACES
 
