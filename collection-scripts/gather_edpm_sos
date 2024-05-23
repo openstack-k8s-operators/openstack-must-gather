@@ -6,7 +6,10 @@
 #             empty string skips sos report gathering. Accepts keyword all to
 #             gather all nodes. eg: edpm-compute-0,edpm-compute-1
 #   SOS_EDPM_PROFILES: list of sos report profiles to use. Empty string to run
-#                      them all. Defaults to: system,storage,virt
+#                      them all.Defaults to:
+#                      container,openstack,system,storage,virt
+#   SOS_EDPM_PLUGINS: list of sos report plugins to use. When set, only the
+#                     plugins in the list are run.
 #
 # TODO: Confirm this can actually ssh into the EDPM nodes besides in the CRC
 #       case.  Worst case we may have to define a Job/Pod with the right
@@ -35,7 +38,7 @@ else
 fi
 
 # Default to some profiles if SOS_EDPM_PROFILES is not set
-SOS_EDPM_PROFILES="${SOS_EDPM_PROFILES-system,storage,virt}"
+SOS_EDPM_PROFILES="${SOS_EDPM_PROFILES-container,openstack,system,storage,virt}"
 if [[ -n "$SOS_EDPM_PROFILES" ]]; then
     SOS_LIMIT="-p $SOS_EDPM_PROFILES"
 fi
