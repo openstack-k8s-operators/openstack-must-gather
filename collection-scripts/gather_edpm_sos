@@ -10,6 +10,8 @@
 #                      container,openstack,system,storage,virt
 #   SOS_EDPM_PLUGINS: list of sos report plugins to use. When set, only the
 #                     plugins in the list are run.
+#   SOS_DECOMPRESS: bool to disable decompressing sos reports. Set to 0 to disable
+#                   or set to 1 to enable. Defaults to 1
 #
 
 # When called from the shell directly
@@ -18,6 +20,10 @@ if [[ -z "$DIR_NAME" ]]; then
     DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
     source "${DIR_NAME}/common.sh"
 fi
+
+# This option is used for CI purposes and
+# is enabled by default
+SOS_DECOMPRESS=${SOS_DECOMPRESS:-1}
 
 SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
 SOS_PATH_NODES="${BASE_COLLECTION_PATH}/sos-reports/_all_nodes"
@@ -76,14 +82,20 @@ gather_edpm_sos () {
 
     echo "Retrieving SOS Report for ${node}"
     mkdir -p "${SOS_PATH_NODES}/sosreport-$node"
-    SSH sudo "cat ${TMPDIR}/*.tar.xz" | tee "${SOS_PATH_NODES}/sosreport-$node.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf -
+    SSH sudo "cat ${TMPDIR}/*.tar.xz" | tee "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
-        echo "Failed to download and decompress sosreport-$node.tar.xz not deleting file"
+        echo "Failed to download sosreport-$node.tar.xz not deleting file"
         return 1
     fi
-    rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+
+    # if were decompressing the sos report, remove the
+    # original sos archive
+    if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
+        tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf ${SOS_PATH_NODES}/sosreport-$node.tar.xz
+        rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+    fi
 
     # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
     chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
