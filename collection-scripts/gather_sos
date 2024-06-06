@@ -9,6 +9,8 @@
 #                     them all. Defaults to: block,cifs,crio,devicemapper,
 #                     devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,
 #                     process,processor,selinux,scsi,udev,openstack_edpm
+#   SOS_DECOMPRESS: bool to disable decompressing sos reports. Set to 0 to disable
+#                   or set to 1 to enable. Defaults to 1
 #
 # TODO: Confirm with GSS the default for SOS_ONLY_PLUGINS
 
@@ -42,6 +44,10 @@ SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,
 if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
 fi
+
+# This option is used for CI purposes and
+# is enabled by default
+SOS_DECOMPRESS=${SOS_DECOMPRESS:-1}
 
 SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
 SOS_PATH_NODES="${BASE_COLLECTION_PATH}/sos-reports/_all_nodes"
@@ -84,21 +90,27 @@ gather_node_sos () {
     done
     sleep 1
 
-    # Download and decompress the tar.xz file from the remote node into the
+    # Download and optionally decompress the tar.xz file from the remote node into the
     # must-gather directory.
-    # If we don't want to decompress at this stage we would need to modify the
-    # yank program so it does the nested decompression automatically.
+    # Not decompressing at this stage outside of a CI environment would
+    # require changes be made to the yank tool
     echo "Retrieving SOS Report for ${node}"
     mkdir "${SOS_PATH_NODES}/sosreport-$node"
     # Add "--loglevel 6" to help debug in case there's a failure
-    oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" | tee "${SOS_PATH_NODES}/sosreport-$node.tar.xz" | tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf -
+    oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" | tee "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
-        echo "Failed to download and decompress sosreport-$node.tar.xz not deleting file"
+        echo "Failed to download sosreport-$node.tar.xz not deleting file"
         return 1
     fi
-    rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+
+    # if were decompressing the sos report, remove the
+    # original sos archive
+    if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
+        tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf ${SOS_PATH_NODES}/sosreport-$node.tar.xz
+        rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+    fi
 
     # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
     chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
