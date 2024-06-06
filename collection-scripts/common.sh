@@ -32,6 +32,8 @@ declare resources=(
     "buildconfig"
     "jobs"
     "cronjobs"
+    "cert"
+    "issuer"
 )
 export resources
 
