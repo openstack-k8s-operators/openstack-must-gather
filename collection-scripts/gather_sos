@@ -103,14 +103,17 @@ gather_node_sos () {
     echo "Retrieving SOS Report for ${node}"
     # Hint the need to use -i when using tar because there are 2 tars in a single file
     sos_file="${SOS_PATH_NODES}/sosreport-$node-UntarWithArg-i.tar.xz"
+    download_logs="${SOS_PATH_NODES}/sosreport-$node.tar.xz-download.logs"
     # Add "--loglevel 6" to help debug in case there's a failure
-    oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" | tee "${sos_file}"
+    oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" 2> "${download_logs}" 1> "${sos_file}"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
         echo "Failed to download sosreport-$node.tar.xz not deleting file"
         return 1
     fi
+
+    rm "${download_logs}"
 
     # if we are decompressing the sos report, remove the original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
