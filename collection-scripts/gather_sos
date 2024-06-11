@@ -101,7 +101,6 @@ gather_node_sos () {
     # Not decompressing at this stage outside of a CI environment would
     # require changes be made to the yank tool
     echo "Retrieving SOS Report for ${node}"
-    mkdir "${SOS_PATH_NODES}/sosreport-$node"
     # Hint the need to use -i when using tar because there are 2 tars in a single file
     sos_file="${SOS_PATH_NODES}/sosreport-$node-UntarWithArg-i.tar.xz"
     # Add "--loglevel 6" to help debug in case there's a failure
@@ -115,12 +114,12 @@ gather_node_sos () {
 
     # if we are decompressing the sos report, remove the original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
+        mkdir "${SOS_PATH_NODES}/sosreport-$node"
         tar -i --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"
         rm "${sos_file}"
+        # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
+        chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
     fi
-
-    # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
-    chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
 
     sleep 1
     # Delete the tar.xz file from the remote node
