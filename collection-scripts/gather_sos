@@ -63,18 +63,24 @@ gather_node_sos () {
     # Can only run 1 must-gather at a time on each host. We remove any existing
     # toolbox container running from previous time with `podman rm`
     #
-    # Current toolbox can ask via stdin if we want to update [1] so we just
-    # update the container beforehand to prevent it from ever asking. In the
-    # next toolbox [2] that may no longer be the case.
-    # [1]: https://github.com/coreos/toolbox/blob/9a7c840fb4881f406287bf29e5f35b6625c7b358/rhcos-toolbox#L37
-    # [2]: https://github.com/coreos/toolbox/issues/60
+    # - Current toolbox can ask via stdin if we want to update [1] so we just
+    #   update the container beforehand to prevent it from ever asking. In the
+    #   next toolbox [2] that may no longer be the case.
+    #   [1]: https://github.com/coreos/toolbox/blob/9a7c840fb4881f406287bf29e5f35b6625c7b358/rhcos-toolbox#L37
+    #   [2]: https://github.com/coreos/toolbox/issues/60
+    # - Use 2 tar files instead of 1 since tar's "-n --concatenate" and "--append" don't support compressed files
+    # - Use tar's transform when adding /var/log/pods so "var" is not removed when untaring with --strip-components
+    #   To avoid performance penalty we don't look for the real directory name using:
+    #     $(tar --exclude='*/*' -tf "${FILENAME}" | head -n1)
+    #   Instead we use a fake podlogs top directory
     oc debug "node/$node" -- chroot /host bash \
       -c "echo 'TOOLBOX_NAME=toolbox-osp' > /root/.toolboxrc ; \
           rm -rf \"${TMPDIR}\" && \
           mkdir -p \"${TMPDIR}\" && \
           sudo podman rm --force toolbox-osp;  \
           sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json registry.redhat.io/rhel9/support-tools && \
-          toolbox sos report --batch $SOS_LIMIT --tmp-dir=\"${TMPDIR}\""
+          toolbox sos report --batch $SOS_LIMIT --tmp-dir=\"${TMPDIR}\" && \
+          tar --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
@@ -95,9 +101,11 @@ gather_node_sos () {
     # Not decompressing at this stage outside of a CI environment would
     # require changes be made to the yank tool
     echo "Retrieving SOS Report for ${node}"
-    mkdir "${SOS_PATH_NODES}/sosreport-$node"
+    # Hint the need to use -i when using tar because there are 2 tars in a single file
+    sos_file="${SOS_PATH_NODES}/sosreport-$node-UntarWithArg-i.tar.xz"
+    download_logs="${SOS_PATH_NODES}/sosreport-$node.tar.xz-download.logs"
     # Add "--loglevel 6" to help debug in case there's a failure
-    oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" | tee "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+    oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" 2> "${download_logs}" 1> "${sos_file}"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
@@ -105,15 +113,16 @@ gather_node_sos () {
         return 1
     fi
 
-    # if were decompressing the sos report, remove the
-    # original sos archive
-    if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
-        tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf ${SOS_PATH_NODES}/sosreport-$node.tar.xz
-        rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
-    fi
+    rm "${download_logs}"
 
-    # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
-    chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+    # if we are decompressing the sos report, remove the original sos archive
+    if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
+        mkdir "${SOS_PATH_NODES}/sosreport-$node"
+        tar -i --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"
+        rm "${sos_file}"
+        # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
+        chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+    fi
 
     sleep 1
     # Delete the tar.xz file from the remote node
