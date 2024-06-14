@@ -73,6 +73,7 @@ gather_node_sos () {
     #   To avoid performance penalty we don't look for the real directory name using:
     #     $(tar --exclude='*/*' -tf "${FILENAME}" | head -n1)
     #   Instead we use a fake podlogs top directory
+    # - Ignore warning exit code (1) from tar, and only consider it a failure on error code (2)
     oc debug "node/$node" -- chroot /host bash \
       -c "echo 'TOOLBOX_NAME=toolbox-osp' > /root/.toolboxrc ; \
           rm -rf \"${TMPDIR}\" && \
@@ -80,7 +81,7 @@ gather_node_sos () {
           sudo podman rm --force toolbox-osp;  \
           sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json registry.redhat.io/rhel9/support-tools && \
           toolbox sos report --batch $SOS_LIMIT --tmp-dir=\"${TMPDIR}\" && \
-          tar --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods"
+          tar --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods; [ \$? -lt 2 ]"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
