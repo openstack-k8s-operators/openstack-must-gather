@@ -82,7 +82,8 @@ gather_edpm_sos () {
 
     echo "Retrieving SOS Report for ${node}"
     mkdir -p "${SOS_PATH_NODES}/sosreport-$node"
-    SSH sudo "cat ${TMPDIR}/*.tar.xz" | tee "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+    # Redirect tar contents to file and stderr to stding
+    { SSH sudo "cat ${TMPDIR}/*.tar.xz" 1> "${SOS_PATH_NODES}/sosreport-$node.tar.xz"; } 2>&1
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
