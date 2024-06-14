@@ -3,9 +3,6 @@
 DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${DIR_NAME}/common.sh"
 
-# Trigger Guru Meditation Reports to have them in SOS report pod logs
-source "${DIR_NAME}/gather_trigger_gmr"
-
 # get SOS Reports first, as they are the slowest to run and will benefit most
 # of the parallel execution
 source "${DIR_NAME}/gather_sos"
@@ -31,6 +28,9 @@ source "${DIR_NAME}/gather_webhooks"
 # logs
 expand_ns
 
+# Trigger Guru Meditation Reports so we then have then in the service logs
+source "${DIR_NAME}/gather_trigger_gmr"
+
 # Import functions used in the for loop
 source "${DIR_NAME}/gather_services_cm"
 source "${DIR_NAME}/gather_secrets"
@@ -46,7 +46,7 @@ for NS in "${DEFAULT_NAMESPACES[@]}"; do
     gather_sub "$NS"
     # get routes, services, jobs, deployments
     # daemonsets, statefulsets, replicasets,
-    # pods (describe)
+    # pods (describe and get logs)
     gather_ctlplane_resources "$NS"
 done
 
