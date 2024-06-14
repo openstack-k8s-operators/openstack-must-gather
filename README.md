@@ -228,6 +228,20 @@ The targets for `make` are as follows:
 - `podman-build`: builds the must-gather image
 - `podman-push`:  pushes an already-built `must-gather` image
 
+It is possible to override the openshift-client version within the resulting
+openstack-must-gather image using the optional `BUILD_ARGS` environment variable.
+For example, assuming the goal is to inject a `4.15` openshift-client, you can
+run:
+
+```bash
+
+$ OCP_CLIENT_TARGET=https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/4.15.9/openshift-client-linux-amd64-rhel9-4.15.9.tar.gz
+
+$ BUILD_ARGS=openshiftclient="${OCP_CLIENT_TARGET}" <parameters> make build
+```
+
+- Replace <parameters> with the registry and image name data.
+
 ### Debugging container
 
 One possible workflow that can be used for development is to run the openstack

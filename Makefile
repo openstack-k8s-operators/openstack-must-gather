@@ -1,6 +1,10 @@
 IMAGE_REGISTRY ?= quay.io/openstack-k8s-operators
 IMAGE_TAG ?= latest
 
+# Extra vars which will be passed to the Docker-build
+BUILD_ARGS ?=
+DOCKER_BUILD_ARGS ?= --build-arg $(BUILD_ARGS)
+
 check-image: ## Check if the MUST_GATHER_IMAGE variable is set
 ifndef MUST_GATHER_IMAGE
 	$(error MUST_GATHER_IMAGE is not set.)
@@ -15,7 +19,7 @@ pytest: ## Run sanity check against python scripts in pydir
 	tox -c pyscripts/tox.ini
 
 podman-build: check-image ## build the must-gather image
-	podman build -t ${IMAGE_REGISTRY}/${MUST_GATHER_IMAGE}:${IMAGE_TAG} .
+	podman build -t ${IMAGE_REGISTRY}/${MUST_GATHER_IMAGE}:${IMAGE_TAG} . ${DOCKER_BUILD_ARGS}
 
 podman-push: check-image ## push the must-gather image to the image registry
 	podman push ${IMAGE_REGISTRY}/${MUST_GATHER_IMAGE}:${IMAGE_TAG}
