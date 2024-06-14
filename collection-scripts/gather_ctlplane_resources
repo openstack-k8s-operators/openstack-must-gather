@@ -22,16 +22,24 @@ function gather_ctlplane_resources {
     run_bg /usr/bin/oc -n "${NS}" get pvc '>' "${NAMESPACE_PATH}/${NS}/pvc.log"
     run_bg /usr/bin/oc -n "${NS}" get network-attachment-definitions -o yaml '>' "${NAMESPACE_PATH}/${NS}/nad.log"
 
-    # Don't gather the logs here, they are all gathered from /var/log/pods in gather_sos
-    pods_dir="${NAMESPACE_PATH}/${NS}/pods/"
-    mkdir -p "${pods_dir}"
-    data=$(oc -n "$NS" get pod --no-headers -o custom-columns=":metadata.name")
-    while read -r pod; do
-        echo "Describe pod ${pod}";
-        # describe pod
-        run_bg oc -n "$NS" describe pod "$pod" '>' "${pods_dir}/${pod}-describe"
+    # extended logs are gatered form /var/log/pods in gather_sos these logs
+    # are short logs aviable vai the api.
+    # We make a single request to get lines in the form <pod> <container> <crash_status>
+    data=$(oc -n "$NS" get pod -o go-template='{{range $indexp,$pod := .items}}{{range $index,$element := $pod.status.containerStatuses}}{{printf "%s %s" $pod.metadata.name $element.name}} {{ if ne $element.lastState.terminated nil }}{{ printf "%s" $element.lastState.terminated }}{{ end }}{{ printf "\n"}}{{end}}{{end}}')
+    while read -r pod container crash_status; do
+        echo "Dump logs for ${container} from ${pod} pod";
+        pod_dir="${NAMESPACE_PATH}/${NS}/pods/${pod}"
+        log_dir="${pod_dir}/logs"
+        if [ ! -d "$log_dir" ]; then
+            mkdir -p "$log_dir"
+            # describe pod
+            run_bg oc -n "$NS" describe pod "$pod" '>' "${pod_dir}/${pod}-describe"
+        fi
+        run_bg oc -n "$NS" logs "$pod" -c "$container" '>' "${log_dir}/${container}.log"
+        if [[ -n "$crash_status" ]]; then
+            run_bg oc -n "$NS" logs "$pod" -c "$container" --previous '>' "${log_dir}/${container}-previous.log";
+        fi
     done <<< "$data"
-
     # get the required resources
     # shellcheck disable=SC2154
     for r in "${resources[@]}"; do
