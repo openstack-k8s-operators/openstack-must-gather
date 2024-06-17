@@ -50,7 +50,7 @@ if [[ -n "$SOS_EDPM_PLUGINS" ]]; then
 fi
 
 SSH () {
-    ssh -i "$key_path" "${username}@${address}" -o StrictHostKeyChecking=accept-new "$@"
+    ssh -n -i "$key_path" "${username}@${address}" -o StrictHostKeyChecking=accept-new "$@"
 }
 
 gather_edpm_sos () {
