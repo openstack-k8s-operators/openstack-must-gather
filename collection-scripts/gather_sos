@@ -40,7 +40,7 @@ else
 fi
 
 # Default to some plugins if SOS_ONLY_PLUGINS is not set
-SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev,openstack_edpm}"
+SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev,openstack_edpm,logs}"
 if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
 fi
@@ -80,7 +80,7 @@ gather_node_sos () {
           mkdir -p \"${TMPDIR}\" && \
           sudo podman rm --force toolbox-osp;  \
           sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json registry.redhat.io/rhel9/support-tools && \
-          toolbox sos report --batch $SOS_LIMIT --tmp-dir=\"${TMPDIR}\" && \
+          toolbox sos report --batch --all-logs $SOS_LIMIT --tmp-dir=\"${TMPDIR}\" && \
           tar --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods; [ \$? -lt 2 ]"
 
     # shellcheck disable=SC2181
