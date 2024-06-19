@@ -73,7 +73,7 @@ gather_edpm_sos () {
         done
     fi
 
-    SSH sudo "bash -c \"rm -rf $TMPDIR && mkdir $TMPDIR && sos report --batch --tmp-dir=$TMPDIR $SOS_LIMIT\""
+    SSH sudo "bash -c \"rm -rf $TMPDIR && mkdir $TMPDIR && sos report --batch --all-logs --tmp-dir=$TMPDIR $SOS_LIMIT\""
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
         echo "Failed to run sos report on ${node}, won't retrieve data"
