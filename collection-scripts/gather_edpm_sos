@@ -39,7 +39,7 @@ else
 fi
 
 # Default to some profiles if SOS_EDPM_PROFILES is not set
-SOS_EDPM_PROFILES="${SOS_EDPM_PROFILES-container,openstack,system,storage,virt}"
+SOS_EDPM_PROFILES="${SOS_EDPM_PROFILES-container,openstack_edpm,system,storage,virt}"
 if [[ -n "$SOS_EDPM_PROFILES" ]]; then
     SOS_LIMIT="-p $SOS_EDPM_PROFILES"
 fi

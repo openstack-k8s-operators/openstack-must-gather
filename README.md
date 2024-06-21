@@ -52,7 +52,7 @@ This is the list of available environmental variables:
   empty string skips sos report gathering. Accepts keyword all to gather all
   nodes. eg: `edpm-compute-0,edpm-compute-1`
 - `SOS_EDPM_PROFILES`: List of sos report profiles to use. Empty string to run
-  them all. Defaults to: `system,storage,virt`
+  them all. Defaults to: `container,openstack_edpm,system,storage,virt`
 - `SOS_EDPM_PLUGINS`: List of sos report plugins to use. This is optional.
 - `OPENSTACK_DATABASES`: comma separated list of OpenStack databases that should
   be dumped. It is possible to set it to `ALL` and dump all databases. By default
