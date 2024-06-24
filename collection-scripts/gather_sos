@@ -155,7 +155,7 @@ mkdir -p "${SOS_PATH_NODES}"
 
 # Get list of nodes and service label for each of the OpenStack service pods
 # Not using -o jsonpath='{.spec.nodeName}' because it uses space separator
-svc_nodes=$(/usr/bin/oc -n openstack get pod -l service --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:.metadata.labels.service,NAME:.metadata.name)
+svc_nodes=$(/usr/bin/oc -n ${OSP_NS} get pod -l service --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:.metadata.labels.service,NAME:.metadata.name)
 nodes=''
 while read -r node svc name; do
     svc_path=$(dest_svc_path "$svc")

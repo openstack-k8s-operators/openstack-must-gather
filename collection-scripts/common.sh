@@ -2,10 +2,13 @@
 
 source "${DIR_NAME}/bg.sh"
 
+export OSP_NS="${OSP_NS-openstack}"
+export OSP_OPERATORS_NS="${OSP_OPERATORS_NS-openstack-operators}"
+
 export BASE_COLLECTION_PATH="${BASE_COLLECTION_PATH:-/must-gather}"
 declare -a DEFAULT_NAMESPACES=(
-    "openstack"
-    "openstack-operators"
+    "${OSP_NS}"
+    "${OSP_OPERATORS_NS}"
     "baremetal-operator-system"
     "openshift-machine-api"
     "cert-manager"

@@ -12,7 +12,7 @@ if [[ -z "$DIR_NAME" ]]; then
     source "${DIR_NAME}/common.sh"
 fi
 
-oc="/usr/bin/oc -n openstack "
+oc="/usr/bin/oc -n ${OSP_NS} "
 oce="$oc exec "
 
 
