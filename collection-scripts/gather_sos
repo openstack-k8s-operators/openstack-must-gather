@@ -196,7 +196,8 @@ fi
 nodes=$(echo "$nodes" | sort | uniq)
 
 if [[ -z "$nodes" ]]; then
-    echo "OCP SOS - No nodes selected!!"
+    echo "OCP SOS - No nodes selected!! something seems broken, gathering all schedulable master nodes"
+    nodes=$(/usr/bin/oc get node -l node-role.kubernetes.io/master --field-selector spec.unschedulable=false --no-headers -o=custom-columns=NODE:.metadata.name)
 else
     echo "OCP SOS - Will retrieve SOS reports from nodes: ${nodes//$'\n'/ }"
 fi
