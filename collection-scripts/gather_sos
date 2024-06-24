@@ -5,6 +5,8 @@
 #   SOS_SERVICES: comma separated list of services to gather SOS reports from,
 #                 empty string skips sos report gathering.  eg: cinder,glance
 #                 Defaults to all of them.
+#   SOS_OSP_OPERATORS: set to non-empty to gather nodes that are running OSP
+#                      operators. Defaults to gather them.
 #   SOS_ONLY_PLUGINS: list of sos report plugins to use. Empty string to run
 #                     them all. Defaults to: block,cifs,crio,devicemapper,
 #                     devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,
@@ -28,16 +30,20 @@ fi
 if [ "${SOS_SERVICES-unset}" = "unset" ]; then
     SOS_SERVICES=( "${OSP_SERVICES[@]}" )
 
-# If list of services is set and empty, nothing to do
+# If list of services is set and empty and instructed to not get operator nodes, nothing to do
 elif [[ -z "${SOS_SERVICES[*]}" ]]; then
-    echo "Skipping SOS gathering for controller nodes"
-    [[ $CALLED -eq 1 ]] && exit 0
-    return
+    if [[ -z "${OS_OSP_OPERATORS}" ]]; then
+        echo "Skipping SOS gathering for controller nodes"
+        [[ $CALLED -eq 1 ]] && exit 0
+        return
+    fi
 
 # If set, convert to an array
 else
     IFS=',' read -r -a SOS_SERVICES <<< "$SOS_SERVICES"
 fi
+
+SOS_OSP_OPERATORS="${SOS_OSP_OPERATORS-true}"
 
 # Default to some plugins if SOS_ONLY_PLUGINS is not set
 SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev,openstack_edpm,logs}"
@@ -153,23 +159,47 @@ dest_svc_path () {
 
 mkdir -p "${SOS_PATH_NODES}"
 
+nodes=''
+
+# SELECT NODES BY REQUESTED SERVICE
 # Get list of nodes and service label for each of the OpenStack service pods
 # Not using -o jsonpath='{.spec.nodeName}' because it uses space separator
-svc_nodes=$(/usr/bin/oc -n openstack get pod -l service --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:.metadata.labels.service,NAME:.metadata.name)
-nodes=''
-while read -r node svc name; do
-    svc_path=$(dest_svc_path "$svc")
-    if [[ -n "$svc_path" ]]; then
+# shellcheck disable=SC2128 # it's enough to check the first element to see if it's empty
+if [[ -n "${SOS_SERVICES}" ]]; then
+    svc_nodes=$(/usr/bin/oc -n openstack get pod -l service --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:.metadata.labels.service,NAME:.metadata.name)
+    while read -r node svc name; do
+        svc_path=$(dest_svc_path "$svc")
+        if [[ -n "$svc_path" ]]; then
+            nodes="${nodes}${node}"$'\n'
+            mkdir -p "$svc_path"
+            sos_dir="${svc_path}/sos-report-${name}"
+            [[ ! -e "$sos_dir" ]] && ln -s "../_all_nodes/sosreport-$node" "$sos_dir" 2>/dev/null
+        else
+            echo "OCP SOS - Skipping node $node because it's not one of the requested services"
+        fi
+    done <<< "$svc_nodes"
+fi
+
+# SELECT NODES RUNNING OSP OPERATORS
+if [[ -n "$SOS_OSP_OPERATORS" ]]; then
+    svc_nodes=$(/usr/bin/oc -n openstack-operators get pod -l openstack.org/operator-name --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:".metadata.labels.openstack\.org/operator-name",NAME:.metadata.name)
+    while read -r node svc name; do
         nodes="${nodes}${node}"$'\n'
+        svc_path="${SOS_PATH}/${svc}"
         mkdir -p "$svc_path"
         sos_dir="${svc_path}/sos-report-${name}"
         [[ ! -e "$sos_dir" ]] && ln -s "../_all_nodes/sosreport-$node" "$sos_dir" 2>/dev/null
-    fi
-done <<< "$svc_nodes"
+    done <<< "$svc_nodes"
+fi
 
 # Remove duplicated nodes because they are running multiple services
 nodes=$(echo "$nodes" | sort | uniq)
-echo "Will retrieve SOS reports from nodes ${nodes//$'\n'/ }"
+
+if [[ -z "$nodes" ]]; then
+    echo "OCP SOS - No nodes selected!!"
+else
+    echo "OCP SOS - Will retrieve SOS reports from nodes: ${nodes//$'\n'/ }"
+fi
 
 for node in $nodes; do
     [[ -z "$node" ]] && continue

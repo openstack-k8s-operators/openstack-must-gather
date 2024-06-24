@@ -48,6 +48,8 @@ This is the list of available environmental variables:
 - `SOS_ONLY_PLUGINS`: List of SOS report plugins to use. Empty string to run
   them all. Defaults to: `block,cifs,crio,devicemapper,devices,iscsi,lvm2,
   memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev`.
+- `SOS_OSP_OPERATORS`: Whether to gather SOS reports for nodes running the
+  operators. Enabled by default (`true`). To disable set to an empty string.
 - `SOS_EDPM`: Comma separated list of edpm nodes to gather SOS reports from,
   empty string skips sos report gathering. Accepts keyword all to gather all
   nodes. eg: `edpm-compute-0,edpm-compute-1`
