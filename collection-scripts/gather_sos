@@ -45,13 +45,6 @@ if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
 fi
 
-# This option is used for CI purposes and
-# is enabled by default
-SOS_DECOMPRESS=${SOS_DECOMPRESS:-1}
-
-SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
-SOS_PATH_NODES="${BASE_COLLECTION_PATH}/sos-reports/_all_nodes"
-
 TMPDIR=/var/tmp/sos-osp
 
 ###############################################################################

@@ -8,6 +8,45 @@ if [[ -z "$DIR_NAME" ]]; then
 fi
 
 
+function rotated_logs_symlinks {
+    [[ ${SOS_DECOMPRESS} -ne 1 ]] && return
+
+    for filename_dest in "${NAMESPACE_PATH}"/*/pods/*; do
+        # If file not found we get the glob string itself, so ignore it
+        [ -e "$filename_dest" ] || continue
+        if [[ $filename_dest =~ ${NAMESPACE_PATH}/([^/]+)/pods/(.*) ]]; then
+            namespace="${BASH_REMATCH[1]}"
+            podname="${BASH_REMATCH[2]}"
+
+            # Some pods have no directory (eg: metallb-system_speaker-c8bxh_7c886529-fa9e-4357-afb2-2e712049b317/130c1942bd055c5b0b16ec19a7c03dca74fe7a48604091284b5868ce53eb1840.log)
+            # Most have a directory with the container name within the pod
+            for log_name in "${SOS_PATH_NODES}"/*/var/log/pods/"${namespace}_${podname}"_*/{*.log.*,*/*.log.*}; do
+                # If file not found we get the glob string itself, so ignore it
+                [ -e "$log_name" ] || continue
+                # To avoid collisions on rotated log names among sos reports construct a new name:
+                # [<container_name>.]<filename>.<nodename>.<logfile_extension>
+                # For visual comfort when it's not a gz file we'll use a different pattern
+                # [<container_name>.]<filename>.<logfile_extension>.<nodename>
+                # That way we'll end up with:
+                #    manager.1.log.20240624-185849.sosreport-crc-vlf7c-master-0.gz
+                #    manager.1.log.20240624-191028.sosreport-crc-vlf7c-master-0
+                if [[ $log_name =~ ${SOS_PATH_NODES}/([^/]+)/var/log/pods/[^/]+/(.*) ]]; then
+                    nodename="${BASH_REMATCH[1]}"
+                    basename=${BASH_REMATCH[2]//\//.}
+                    if [[ "${basename##*.}" == 'gz' ]]; then
+                        linkfile="${filename_dest}/logs/${basename%.*}.${nodename}.${basename##*.}"
+                    else
+                        linkfile="${filename_dest}/logs/${basename}.${nodename}"
+                    fi
+                    echo "Creating symlink ${linkfile} to ${log_name}"
+                    ln -s "${log_name}" "${linkfile}"
+                fi
+            done
+        fi
+    done
+}
+
+
 function gather_ctlplane_resources {
     local NS="$1"
     # Only get resources if the namespace exists
