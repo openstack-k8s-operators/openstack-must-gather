@@ -42,7 +42,8 @@ cinder_trigger_gmr() {
     # with the host so we don't know what PID the service has
     while read -r line; do
         podname="${line% *}"
-        svctype="${line#* }"
+        svctype="${line##* }"
+        [ "${svctype}" == '<none>' ] && continue
         run_bg $oce $podname -c $svctype -- touch /etc/cinder
     done <<< "$svcs"
 }
