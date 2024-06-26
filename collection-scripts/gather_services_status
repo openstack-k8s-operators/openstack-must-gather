@@ -7,7 +7,8 @@ if [[ -z "$DIR_NAME" ]]; then
     source "${DIR_NAME}/common.sh"
 fi
 
-alias os="/usr/bin/oc -n openstack rsh openstackclient openstack "
+# shellcheck disable=SC2139  # We want it expanded when defined
+alias os="/usr/bin/oc -n ${OSP_NS} rsh openstackclient openstack "
 
 # For each service passed an input, if the associated entry exists,
 # we can call the related function that processes specific service
@@ -110,8 +111,8 @@ get_nova_status() {
     mkdir -p "$NOVA_PATH"
     run_bg ${BASH_ALIASES[os]} compute service list '>' "$NOVA_PATH"/service_list
     run_bg ${BASH_ALIASES[os]} hypervisor list '>' "$NOVA_PATH"/hypervisor_list
-    run_bg /usr/bin/oc -n openstack exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_cells '>' "$NOVA_PATH"/cell_list
-    run_bg /usr/bin/oc -n openstack exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_hosts '>' "$NOVA_PATH"/host_list
+    run_bg /usr/bin/oc -n ${OSP_NS} exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_cells '>' "$NOVA_PATH"/cell_list
+    run_bg /usr/bin/oc -n ${OSP_NS} exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_hosts '>' "$NOVA_PATH"/host_list
     run_bg ${BASH_ALIASES[os]} aggregate list --long '>' "$NOVA_PATH"/aggregate_list
 }
 
@@ -156,7 +157,7 @@ get_aodh_status() {
 # Ceilometer, sg-core, prometheus service gathering - metrics
 get_ceilometer_status() {
     local CEILOMETER_PATH="$BASE_COLLECTION_PATH/ctlplane/ceilometer"
-    if /usr/bin/oc -n openstack get metricstorage metric-storage &> /dev/null; then
+    if /usr/bin/oc -n ${OSP_NS} get metricstorage metric-storage &> /dev/null; then
         # For `openstack metric list` command to work we need ceilometer
         # in the openstack as well as metricstorage deployed
         # on openshift.

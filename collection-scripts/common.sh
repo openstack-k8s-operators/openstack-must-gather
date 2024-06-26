@@ -2,10 +2,19 @@
 
 source "${DIR_NAME}/bg.sh"
 
+export OSP_NS="${OSP_NS-openstack}"
+export OSP_OPERATORS_NS="${OSP_OPERATORS_NS-openstack-operators}"
+
+# This option is used for CI purposes and
+# is enabled by default
+export SOS_DECOMPRESS=${SOS_DECOMPRESS:-1}
+
 export BASE_COLLECTION_PATH="${BASE_COLLECTION_PATH:-/must-gather}"
+export SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
+export SOS_PATH_NODES="${SOS_PATH}/_all_nodes"
 declare -a DEFAULT_NAMESPACES=(
-    "openstack"
-    "openstack-operators"
+    "${OSP_NS}"
+    "${OSP_OPERATORS_NS}"
     "baremetal-operator-system"
     "openshift-machine-api"
     "cert-manager"

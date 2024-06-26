@@ -45,13 +45,6 @@ if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
 fi
 
-# This option is used for CI purposes and
-# is enabled by default
-SOS_DECOMPRESS=${SOS_DECOMPRESS:-1}
-
-SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
-SOS_PATH_NODES="${BASE_COLLECTION_PATH}/sos-reports/_all_nodes"
-
 TMPDIR=/var/tmp/sos-osp
 
 ###############################################################################
@@ -69,11 +62,14 @@ gather_node_sos () {
     #   [1]: https://github.com/coreos/toolbox/blob/9a7c840fb4881f406287bf29e5f35b6625c7b358/rhcos-toolbox#L37
     #   [2]: https://github.com/coreos/toolbox/issues/60
     # - Use 2 tar files instead of 1 since tar's "-n --concatenate" and "--append" don't support compressed files
-    # - Use tar's transform when adding /var/log/pods so "var" is not removed when untaring with --strip-components
+    # - Use tar's transform when adding rotated logs from /var/log/pods so "var" is not removed when untaring with
+    #   --strip-components
     #   To avoid performance penalty we don't look for the real directory name using:
     #     $(tar --exclude='*/*' -tf "${FILENAME}" | head -n1)
     #   Instead we use a fake podlogs top directory
-    # - Ignore warning exit code (1) from tar, and only consider it a failure on error code (2)
+    # - Ignore errors on tar since it fails if logs are added while doing the tar as well as if a file doesn't exist
+    #   (because the glob has no data or because the file was removed by the log rotation mechanism)
+    # - Build LOGS env var to pass tar based on existing files, as tar fails when run with glob that produces no files
     oc debug "node/$node" -- chroot /host bash \
       -c "echo 'TOOLBOX_NAME=toolbox-osp' > /root/.toolboxrc ; \
           rm -rf \"${TMPDIR}\" && \
@@ -81,7 +77,7 @@ gather_node_sos () {
           sudo podman rm --force toolbox-osp;  \
           sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json registry.redhat.io/rhel9/support-tools && \
           toolbox sos report --batch --all-logs $SOS_LIMIT --tmp-dir=\"${TMPDIR}\" && \
-          tar --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods; [ \$? -lt 2 ]"
+          if [[ \"\$(ls /var/log/pods/*/{*.log.*,*/*.log.*} 2>/dev/null)\" != '' ]]; then tar --ignore-failed-read --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods/*/{*.log.*,*/*.log.*} || true; fi"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
@@ -155,7 +151,7 @@ mkdir -p "${SOS_PATH_NODES}"
 
 # Get list of nodes and service label for each of the OpenStack service pods
 # Not using -o jsonpath='{.spec.nodeName}' because it uses space separator
-svc_nodes=$(/usr/bin/oc -n openstack get pod -l service --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:.metadata.labels.service,NAME:.metadata.name)
+svc_nodes=$(/usr/bin/oc -n ${OSP_NS} get pod -l service --no-headers -o=custom-columns=NODE:.spec.nodeName,SVC:.metadata.labels.service,NAME:.metadata.name)
 nodes=''
 while read -r node svc name; do
     svc_path=$(dest_svc_path "$svc")

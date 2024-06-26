@@ -58,6 +58,9 @@ source "${DIR_NAME}/gather_services_status"
 
 # dump the openstack database
 source "${DIR_NAME}/gather_db"
-#
+
 # Wait for background tasks to complete
 wait_bg
+
+# Create rotated log symlinks after everything else has finished
+rotated_logs_symlinks

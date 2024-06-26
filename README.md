@@ -39,6 +39,10 @@ oc adm must-gather --image=quay.io/openstack-k8s-operators/openstack-must-gather
 
 This is the list of available environmental variables:
 
+- `OSP_NS`: Namespace where the OSP services are running. Defaults to
+  `openstack`.
+- `OSP_OPERATORS_NS`: Namespace where the OSP operators are running. Defaults
+  to `openstack-operators`.
 - `CONCURRENCY`: Must gather runs many operations, so to speed things up we run
   them in parallel with a concurrency of 5 by default. Users can change this
   environmental variable to adjust to its needs.
