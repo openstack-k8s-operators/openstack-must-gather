@@ -43,6 +43,7 @@ declare resources=(
     "cronjobs"
     "cert"
     "issuer"
+    "certificaterequests"
 )
 export resources
 
