@@ -61,9 +61,14 @@ function gather_ctlplane_resources {
     run_bg /usr/bin/oc -n "${NS}" get pvc '>' "${NAMESPACE_PATH}/${NS}/pvc.log"
     run_bg /usr/bin/oc -n "${NS}" get network-attachment-definitions -o yaml '>' "${NAMESPACE_PATH}/${NS}/nad.log"
 
-    # We make a single request to get lines in the form <pod> <container> <crash_status>
-    data=$(oc -n "$NS" get pod -o go-template='{{range $indexp,$pod := .items}}{{range $index,$element := $pod.status.containerStatuses}}{{printf "%s %s" $pod.metadata.name $element.name}} {{ if ne $element.lastState.terminated nil }}{{ printf "%s" $element.lastState.terminated }}{{ end }}{{ printf "\n"}}{{end}}{{end}}')
-    while read -r pod container crash_status; do
+    # We make a single request to get lines in the form <pod> <container> <previous_log>
+    data=$(oc -n "${NS}" get pods -o json | jq -r '
+      .items[] |
+      .metadata.name as $pod |
+      .status.containerStatuses[] |
+      "\($pod) \(.name) \(.lastState | if .terminated then true else false end)"
+    ')
+    while read -r pod container previous; do
         echo "Dump logs for ${container} from ${pod} pod";
         pod_dir="${NAMESPACE_PATH}/${NS}/pods/${pod}"
         log_dir="${pod_dir}/logs"
@@ -73,7 +78,7 @@ function gather_ctlplane_resources {
             run_bg oc -n "$NS" describe pod "$pod" '>' "${pod_dir}/${pod}-describe"
         fi
         run_bg oc -n "$NS" logs "$pod" -c "$container" '>' "${log_dir}/${container}.log"
-        if [[ -n "$crash_status" ]]; then
+        if [[ "$previous" == true ]]; then
             run_bg oc -n "$NS" logs "$pod" -c "$container" --previous '>' "${log_dir}/${container}-previous.log";
         fi
     done <<< "$data"
