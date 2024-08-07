@@ -62,14 +62,15 @@ function gather_ctlplane_resources {
     run_bg /usr/bin/oc -n "${NS}" get network-attachment-definitions -o yaml '>' "${NAMESPACE_PATH}/${NS}/nad.log"
 
     # We make a single request to get lines in the form <pod> <container> <previous_log>
+    # mark pods that are in Pending state (they won't have
+    # a status.containerStatuses field) with a null container name
     data=$(oc -n "${NS}" get pods -o json | jq -r '
       .items[] |
       .metadata.name as $pod |
-      .status.containerStatuses[] |
+      .status.containerStatuses[]? // null |
       "\($pod) \(.name) \(.lastState | if .terminated then true else false end)"
     ')
     while read -r pod container previous; do
-        echo "Dump logs for ${container} from ${pod} pod";
         pod_dir="${NAMESPACE_PATH}/${NS}/pods/${pod}"
         log_dir="${pod_dir}/logs"
         if [ ! -d "$log_dir" ]; then
@@ -77,7 +78,10 @@ function gather_ctlplane_resources {
             # describe pod
             run_bg oc -n "$NS" describe pod "$pod" '>' "${pod_dir}/${pod}-describe"
         fi
-        run_bg oc -n "$NS" logs "$pod" -c "$container" '>' "${log_dir}/${container}.log"
+        if [ -n "${container}" ] && [ "${container}" != "null"  ]; then
+            echo "Dump logs for ${container} from ${pod} pod";
+            run_bg oc -n "$NS" logs "$pod" -c "$container" '>' "${log_dir}/${container}.log"
+        fi
         if [[ "$previous" == true ]]; then
             run_bg oc -n "$NS" logs "$pod" -c "$container" --previous '>' "${log_dir}/${container}-previous.log";
         fi
