@@ -50,6 +50,9 @@ get_status() {
     "octavia")
         get_octavia_status
         ;;
+    "glance")
+        get_glance_status
+        ;;
     *) ;;
     esac
 }
@@ -178,6 +181,13 @@ get_octavia_status() {
     done;
 
     run_bg ${BASH_ALIASES[os]} loadbalancer provider list '>' "$OCTAVIA_PATH"/provider_list
+}
+
+# Glance service gathering - task
+get_glance_status() {
+    local GLANCE_PATH="$BASE_COLLECTION_PATH/ctlplane/glance"
+    mkdir -p "$GLANCE_PATH"
+    run_bg ${BASH_ALIASES[os]} image task list '>' "$GLANCE_PATH"/task_list
 }
 
 # first we gather generic status of the openstack ctlplane
