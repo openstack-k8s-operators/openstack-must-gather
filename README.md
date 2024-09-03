@@ -67,6 +67,10 @@ This is the list of available environmental variables:
   default (and preserves the default behavior required in a production environment).
   However, if set to 1, it dumps secrets and services config files without masking
   sensitive data.
+- `COMPRESSED_PATH`: defines the path to store the compressed form of the
+  gathered data
+- `DELETE_AFTER_COMPRESSION`: 0 or 1. When set to 1 the uncompressed data is
+  deleted after the archive is created. Defaulted to 0.
 
 ### Inspect gathered data
 

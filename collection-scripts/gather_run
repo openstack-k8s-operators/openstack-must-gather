@@ -65,9 +65,24 @@ wait_bg
 # Create rotated log symlinks after everything else has finished
 rotated_logs_symlinks
 
-# create an easy to download tar from the whole content
+# The path to store the compressed result
+export COMPRESSED_PATH=${COMPRESSED_PATH:-"${BASE_COLLECTION_PATH}"}
+# whether to delete or keep the uncompressed files.
+# Defaults to keep them.
+export DELETE_AFTER_COMPRESSION=${DELETE_AFTER_COMPRESSION:-0}
+
+# create an easy to download tar.xz from the whole content
+archive="${COMPRESSED_PATH}/must-gather.tar.xz"
+
 tar \
     --exclude='must-gather.tar.xz' \
     --warning=no-file-changed --ignore-failed  \
     -cJf \
-    "${BASE_COLLECTION_PATH}/must-gather.tar.xz" "${BASE_COLLECTION_PATH}" || true
+    "${archive}" "${BASE_COLLECTION_PATH}" || true
+
+echo "The ${archive} now can be attached to the support case."
+
+if [[ ${DELETE_AFTER_COMPRESSION} -eq 1 ]]; then
+    find "${BASE_COLLECTION_PATH}" \
+        -mindepth 1 -not -path "*must-gather.tar.xz*" -delete
+fi
