@@ -53,6 +53,9 @@ get_status() {
     "glance")
         get_glance_status
         ;;
+    "designate")
+        get_designate_status
+        ;;
     *) ;;
     esac
 }
@@ -188,6 +191,28 @@ get_glance_status() {
     local GLANCE_PATH="$BASE_COLLECTION_PATH/ctlplane/glance"
     mkdir -p "$GLANCE_PATH"
     run_bg ${BASH_ALIASES[os]} image task list '>' "$GLANCE_PATH"/task_list
+}
+
+# Designate service gathering - dns resources,
+get_designate_status() {
+    local DESIGNATE_PATH="$BASE_COLLECTION_PATH/ctlplane/designate"
+    mkdir -p "$DESIGNATE_PATH"
+    resources="recordset tld zone "
+
+    for r in $resources; do
+        run_bg ${BASH_ALIASES[os]} $r list '>' "$DESIGNATE_PATH"/"${r}_list"
+    done;
+
+    run_bg ${BASH_ALIASES[os]} dns quota list '>' "$DESIGNATE_PATH"/dns_quota_list
+    run_bg ${BASH_ALIASES[os]} dns service list '>' "$DESIGNATE_PATH"/dns_service_list
+    run_bg ${BASH_ALIASES[os]} ptr record list '>' "$DESIGNATE_PATH"/ptr_record_list
+    run_bg ${BASH_ALIASES[os]} zone blacklist list '>' "$DESIGNATE_PATH"/zone_blacklist_list
+    run_bg ${BASH_ALIASES[os]} zone export list '>' "$DESIGNATE_PATH"/zone_export_list
+    run_bg ${BASH_ALIASES[os]} zone import list '>' "$DESIGNATE_PATH"/zone_import_list
+    run_bg ${BASH_ALIASES[os]} zone share list '>' "$DESIGNATE_PATH"/zone_share_list
+    run_bg ${BASH_ALIASES[os]} zone transfer accept list '>' "$DESIGNATE_PATH"/transfer_accept_list
+    run_bg ${BASH_ALIASES[os]} zone transfer request list '>' "$DESIGNATE_PATH"/transfer_request_list
+    run_bg ${BASH_ALIASES[os]} tsigkey list --column name --column algorithm --column scope '>' "$DESIGNATE_PATH"/tsigkey_list
 }
 
 # first we gather generic status of the openstack ctlplane
