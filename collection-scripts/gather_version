@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# load shared functions and data when not sourced
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
+
+function log_version() {
+    echo "openstack-k8s-operators/openstack-must-gather"> "${BASE_COLLECTION_PATH}/version"
+    ocp_version="0.0.0-unknown"
+    if [[ -n ${OS_GIT_VERSION} ]]; then
+        ocp_version="${OS_GIT_VERSION}"
+    fi
+    echo ${ocp_version} >> "${BASE_COLLECTION_PATH}/version"
+}
+
+if [[ $CALLED -eq 1 ]]; then
+    log_version
+fi
