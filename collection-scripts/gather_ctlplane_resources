@@ -61,16 +61,24 @@ function gather_ctlplane_resources {
     run_bg /usr/bin/oc -n "${NS}" get pvc '>' "${NAMESPACE_PATH}/${NS}/pvc.log"
     run_bg /usr/bin/oc -n "${NS}" get network-attachment-definitions -o yaml '>' "${NAMESPACE_PATH}/${NS}/nad.log"
 
-    # We make a single request to get lines in the form <pod> <container> <previous_log>
+    # We make a single request to get lines in the form <pod> <container> <previous_log> <init_containers>
     # mark pods that are in Pending state (they won't have
     # a status.containerStatuses field) with a null container name
     data=$(oc -n "${NS}" get pods -o json | jq -r '
       .items[] |
       .metadata.name as $pod |
-      .status.containerStatuses[]? // null |
-      "\($pod) \(.name) \(.lastState | if .terminated then true else false end)"
+      (.status |
+        (
+          if has("initContainerStatuses") then .initContainerStatuses[] else empty end |
+          "\($pod) \(.name) \(has("lastState") and (.lastState | has("terminated"))) true"
+        ),
+        (
+          if has("containerStatuses") then .containerStatuses[] else empty end |
+          "\($pod) \(.name) \(has("lastState") and (.lastState | has("terminated"))) false"
+        )
+      )
     ')
-    while read -r pod container previous; do
+    while read -r pod container previous init; do
         pod_dir="${NAMESPACE_PATH}/${NS}/pods/${pod}"
         log_dir="${pod_dir}/logs"
         if [ ! -d "$log_dir" ]; then
@@ -84,6 +92,13 @@ function gather_ctlplane_resources {
         fi
         if [[ "$previous" == true ]]; then
             run_bg oc -n "$NS" logs "$pod" -c "$container" --previous '>' "${log_dir}/${container}-previous.log";
+        fi
+        if [[ "$init" == true ]]; then
+            echo "Dump init container logs from ${pod} pod";
+            initcontainers=$(oc -n "${NS}" get pod "${pod}" -o json | jq -r '.status.initContainerStatuses[]?.name')
+            for initcontainer in ${initcontainers}; do
+                run_bg oc -n "$NS" logs "$pod" -c "$initcontainer" '>' "${log_dir}/${initcontainer}.log"
+            done
         fi
     done <<< "$data"
 
