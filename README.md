@@ -236,6 +236,35 @@ The targets for `make` are as follows:
 - `podman-build`: builds the must-gather image
 - `podman-push`:  pushes an already-built `must-gather` image
 
+As per the [must-gather
+guidelines](https://github.com/openshift/must-gather/blob/master/must-gather.md#must-gather-images),
+when a must-gather image is built, a `OS_GIT_VERSION` environment variable is
+set within the image in the form `major.minor.micro.qualifier`, so that
+programmatic analysis can be developed.
+For OpenStack must-gather, instad, the version is created starting from the
+last commit, and it creates a qualifier based on the following commands:
+
+```bash
+OS_GIT_COMMIT=$(git rev-parse --short "HEAD^{commit}")
+OS_GIT_BRANCH=$(git rev-parse  --abbrev-ref HEAD)
+OS_GIT_COMMIT_COUNT=$(git rev-list HEAD --count)
+OS_GIT_VERSION=$(OS_GIT_BRANCH)-$(OS_GIT_COMMIT_COUNT)-g$(OS_GIT_COMMIT)
+```
+The resulting format is in the form: `<branch>-<number-of-commits>-g<commit-hash>`
+
+For example, if you are on `18.0-FR2` branch, a potential output might look
+like:
+
+```
+18.0-FR2-165-g1234567
+```
+
+Where:
+
+- 18.0-FR2 is the current branch
+- The middle number (165) is how many commits are present in the branch
+- g1234567 is the abbreviated commit hash
+
 ### Debugging container
 
 One possible workflow that can be used for development is to run the openstack
