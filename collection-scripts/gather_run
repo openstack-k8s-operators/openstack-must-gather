@@ -65,6 +65,10 @@ wait_bg
 # Create rotated log symlinks after everything else has finished
 rotated_logs_symlinks
 
+# Store version of the must-gather tool first
+source "${DIR_NAME}/gather_version"
+log_version
+
 # The path to store the compressed result
 export COMPRESSED_PATH=${COMPRESSED_PATH:-"${BASE_COLLECTION_PATH}"}
 # whether to delete or keep the uncompressed files.
