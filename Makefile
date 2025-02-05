@@ -1,6 +1,13 @@
 IMAGE_REGISTRY ?= quay.io/openstack-k8s-operators
 IMAGE_TAG ?= latest
 
+OS_GIT_COMMIT := $(shell git rev-parse --short "HEAD^{commit}")
+OS_GIT_BRANCH := $(shell git rev-parse  --abbrev-ref HEAD)
+OS_GIT_COMMIT_COUNT := $(shell git rev-list HEAD --count)
+OS_GIT_VERSION := $(OS_GIT_BRANCH)-$(OS_GIT_COMMIT_COUNT)-g$(OS_GIT_COMMIT)
+
+BUILD_ARGS ?= --build-arg OS_GIT_VERSION=${OS_GIT_VERSION}
+
 check-image: ## Check if the MUST_GATHER_IMAGE variable is set
 ifndef MUST_GATHER_IMAGE
 	$(error MUST_GATHER_IMAGE is not set.)
@@ -15,7 +22,7 @@ pytest: ## Run sanity check against python scripts in pydir
 	tox -c pyscripts/tox.ini
 
 podman-build: check-image ## build the must-gather image
-	podman build -t ${IMAGE_REGISTRY}/${MUST_GATHER_IMAGE}:${IMAGE_TAG} .
+	podman build -t ${IMAGE_REGISTRY}/${MUST_GATHER_IMAGE}:${IMAGE_TAG} ${BUILD_ARGS} .
 
 podman-push: check-image ## push the must-gather image to the image registry
 	podman push ${IMAGE_REGISTRY}/${MUST_GATHER_IMAGE}:${IMAGE_TAG}
