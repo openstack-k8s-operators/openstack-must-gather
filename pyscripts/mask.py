@@ -89,10 +89,25 @@ class SecretMask():
 
         # mask the dict containing k8s secret dump
         self._applyMask(s)
-               
+
         # write the resulting, masked/encoded file
         self._writeYaml(dict(s))
         return True
+
+    def _applyAnnotationsMask(self, annotations: Dict[str, Any]) -> Dict[str, Any]:
+        last_config = annotations.get("kubectl.kubernetes.io/last-applied-configuration", None)
+        if not last_config:
+            return annotations
+        try:
+            last_applied_config = json.loads(last_config)
+
+            # recursively mask secrets within last-applied-configuration
+            self._applyMask(last_applied_config)
+            annotations["kubectl.kubernetes.io/last-applied-configuration"] = json.dumps(last_applied_config, separators=(',', ':'))
+        except (json.JSONDecodeError, KeyError) as e:
+            print(f"Error while parsing contents of kubectl.kubernetes.io/last-applied-configuration {e}")
+            annotations["kubectl.kubernetes.io/last-applied-configuration"] = MASK_STR
+        return annotations
 
     def _applyMask(self, s: Dict) -> None:
         for k, v in s.items():
@@ -105,17 +120,9 @@ class SecretMask():
             if k == "data":
                 data = self._process_data(v)
                 s[k] = data
-            elif k == "metadata" and len(s[k]["annotations"]) != 0:
-                last_applied_config_str = s[k]["annotations"]["kubectl.kubernetes.io/last-applied-configuration"]
-                try:
-                    last_applied_config = json.loads(last_applied_config_str)
+            elif k == "metadata" and "annotations" in s[k]:
+                s[k]["annotations"] = self._applyAnnotationsMask(s[k]["annotations"])
 
-                    # recursively mask secrets within last-applied-configuration
-                    self._applyMask(last_applied_config)
-                    s[k]["annotations"]["kubectl.kubernetes.io/last-applied-configuration"] = json.dumps(last_applied_config, separators=(',', ':'))
-                except(json.JSONDecodeError, KeyError) as e:
-                    print(f"Error while parsing contents of kubectl.kubernetes.io/last-applied-configuration")
-         
     def _readYaml(self) -> Dict[str, str]:
         """
         Read and Load the k8s Secret dumped as
