@@ -12,6 +12,7 @@ export SOS_DECOMPRESS=${SOS_DECOMPRESS:-1}
 export BASE_COLLECTION_PATH="${BASE_COLLECTION_PATH:-/must-gather}"
 export SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
 export SOS_PATH_NODES="${SOS_PATH}/_all_nodes"
+export METALLB_NAMESPACE=${METALLB_NAMESPACE:-"metallb-system"}
 declare -a DEFAULT_NAMESPACES=(
     "${OSP_NS}"
     "${OSP_OPERATORS_NS}"
@@ -21,10 +22,9 @@ declare -a DEFAULT_NAMESPACES=(
     "openshift-nmstate"
     "openshift-operators-redhat"
     "openshift-logging"
+    "${METALLB_NAMESPACE}"
 )
 export DEFAULT_NAMESPACES
-
-METALLB_NAMESPACE=${METALLB_NAMESPACE:-"metallb-system"}
 
 NAMESPACE_PATH=${BASE_COLLECTION_PATH}/namespaces
 export NAMESPACE_PATH
