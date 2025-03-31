@@ -23,6 +23,7 @@ declare -a DEFAULT_NAMESPACES=(
     "openshift-operators-redhat"
     "openshift-logging"
     "${METALLB_NAMESPACE}"
+    "crc-storage"
 )
 export DEFAULT_NAMESPACES
 
