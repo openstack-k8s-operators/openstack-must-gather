@@ -44,6 +44,7 @@ declare resources=(
     "cert"
     "issuer"
     "certificaterequests"
+    "imagestream"
 )
 export resources
 
