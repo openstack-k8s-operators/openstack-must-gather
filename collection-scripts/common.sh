@@ -73,6 +73,7 @@ declare -a OSP_SERVICES=(
     "metric-storage"
     "aodh"
     "logging"
+    "instanceha"
 )
 export OSP_SERVICES
 
