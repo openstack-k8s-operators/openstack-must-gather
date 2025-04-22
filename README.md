@@ -71,6 +71,8 @@ This is the list of available environmental variables:
   gathered data
 - `DELETE_AFTER_COMPRESSION`: 0 or 1. When set to 1 the uncompressed data is
   deleted after the archive is created. Defaulted to 0.
+- `SUPPORT_TOOLS`: The OpenShift support-tools container image. It allows to
+  override the image location for disconnected environments.
 
 ### Inspect gathered data
 
