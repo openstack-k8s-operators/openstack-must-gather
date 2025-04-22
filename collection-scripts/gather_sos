@@ -46,6 +46,7 @@ if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
 fi
 
 TMPDIR=/var/tmp/sos-osp
+SUPPORT_TOOLS=${SUPPORT_TOOLS:-"registry.redhat.io/rhel9/support-tools"}
 
 ###############################################################################
 # SOS GATHERING
@@ -75,7 +76,7 @@ gather_node_sos () {
           rm -rf \"${TMPDIR}\" && \
           mkdir -p \"${TMPDIR}\" && \
           sudo podman rm --force toolbox-osp;  \
-          sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json registry.redhat.io/rhel9/support-tools && \
+          sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json $SUPPORT_TOOLS && \
           toolbox sos report --batch --all-logs $SOS_LIMIT --tmp-dir=\"${TMPDIR}\" && \
           if [[ \"\$(ls /var/log/pods/*/{*.log.*,*/*.log.*} 2>/dev/null)\" != '' ]]; then tar --ignore-failed-read --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods/*/{*.log.*,*/*.log.*} || true; fi"
 
