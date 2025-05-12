@@ -13,6 +13,7 @@ export BASE_COLLECTION_PATH="${BASE_COLLECTION_PATH:-/must-gather}"
 export SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
 export SOS_PATH_NODES="${SOS_PATH}/_all_nodes"
 export METALLB_NAMESPACE=${METALLB_NAMESPACE:-"metallb-system"}
+export RABBITMQ_SELECTOR="app.kubernetes.io/component=rabbitmq"
 declare -a DEFAULT_NAMESPACES=(
     "${OSP_NS}"
     "${OSP_OPERATORS_NS}"
