@@ -56,6 +56,9 @@ get_status() {
     "designate")
         get_designate_status
         ;;
+    "rabbitmq")
+        get_rabbitmq_status
+        ;;
     *) ;;
     esac
 }
@@ -66,6 +69,22 @@ get_openstack_status() {
     run_bg ${BASH_ALIASES[os]} endpoint list '>' "$BASE_COLLECTION_PATH"/ctlplane/endpoints
     run_bg ${BASH_ALIASES[os]} service list '>' "$BASE_COLLECTION_PATH"/ctlplane/services
     run_bg ${BASH_ALIASES[os]} network agent list '>' "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
+}
+
+# Rabbitmq info gathering -
+get_rabbitmq_status() {
+    local RABBIT_PATH="$BASE_COLLECTION_PATH/ctlplane/rabbitmq"
+    mkdir -p "$RABBIT_PATH"
+    rabbit_instances=$(oc -n "${OSP_NS}" get pods -l "$RABBITMQ_SELECTOR" -o custom-columns=NAME:.metadata.name --no-headers)
+    for inst in $rabbit_instances; do
+        mkdir -p "$RABBIT_PATH/$inst"
+        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl status '>' "$RABBIT_PATH"/"$inst"/status
+        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl cluster_status '>' "$RABBIT_PATH"/"$inst"/cluster_status
+        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_queues '>' "$RABBIT_PATH"/"$inst"/list_queues
+        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_connections '>' "$RABBIT_PATH"/"$inst"/list_connections
+        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_policies '>' "$RABBIT_PATH"/"$inst"/list_policies
+        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_unresponsive_queues '>' "$RABBIT_PATH"/"$inst"/list_unresponsive_queues
+    done
 }
 
 # Manila service gathering -
@@ -219,6 +238,11 @@ get_designate_status() {
 # then we process the existing services (if an associated
 # function has been defined)
 run_bg get_status "openstack"
+
+# we gather rabbitmq status in advance before moving to the
+# dynamically generated list of services
+run_bg get_status "rabbitmq"
+
 # get the list of existing ctlplane services (once) and
 # filter the whole list processing only services with an
 # associated function
