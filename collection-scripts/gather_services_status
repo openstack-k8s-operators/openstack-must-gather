@@ -232,6 +232,9 @@ get_designate_status() {
     run_bg ${BASH_ALIASES[os]} zone transfer accept list '>' "$DESIGNATE_PATH"/transfer_accept_list
     run_bg ${BASH_ALIASES[os]} zone transfer request list '>' "$DESIGNATE_PATH"/transfer_request_list
     run_bg ${BASH_ALIASES[os]} tsigkey list --column name --column algorithm --column scope '>' "$DESIGNATE_PATH"/tsigkey_list
+    WORKER=$(oc get pods -l component=designate-worker -o custom-columns=NAME:.metadata.name --no-headers | head -n 1)
+    # We can add the --all_pools flag when it is available in openstackclient
+    run_bg /usr/bin/oc -n ${OSP_NS} exec -t ${WORKER} -- designate-manage pool show_config '>' "$DESIGNATE_PATH"/pool_list
 }
 
 # first we gather generic status of the openstack ctlplane
