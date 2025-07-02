@@ -216,22 +216,20 @@ get_glance_status() {
 get_designate_status() {
     local DESIGNATE_PATH="$BASE_COLLECTION_PATH/ctlplane/designate"
     mkdir -p "$DESIGNATE_PATH"
-    resources="recordset tld zone "
 
-    for r in $resources; do
-        run_bg ${BASH_ALIASES[os]} $r list '>' "$DESIGNATE_PATH"/"${r}_list"
-    done;
-
+    run_bg ${BASH_ALIASES[os]} zone list '>' "$DESIGNATE_PATH"/zone_list
     run_bg ${BASH_ALIASES[os]} dns quota list '>' "$DESIGNATE_PATH"/dns_quota_list
-    run_bg ${BASH_ALIASES[os]} dns service list '>' "$DESIGNATE_PATH"/dns_service_list
     run_bg ${BASH_ALIASES[os]} ptr record list '>' "$DESIGNATE_PATH"/ptr_record_list
-    run_bg ${BASH_ALIASES[os]} zone blacklist list '>' "$DESIGNATE_PATH"/zone_blacklist_list
     run_bg ${BASH_ALIASES[os]} zone export list '>' "$DESIGNATE_PATH"/zone_export_list
     run_bg ${BASH_ALIASES[os]} zone import list '>' "$DESIGNATE_PATH"/zone_import_list
-    run_bg ${BASH_ALIASES[os]} zone share list '>' "$DESIGNATE_PATH"/zone_share_list
-    run_bg ${BASH_ALIASES[os]} zone transfer accept list '>' "$DESIGNATE_PATH"/transfer_accept_list
     run_bg ${BASH_ALIASES[os]} zone transfer request list '>' "$DESIGNATE_PATH"/transfer_request_list
-    run_bg ${BASH_ALIASES[os]} tsigkey list --column name --column algorithm --column scope '>' "$DESIGNATE_PATH"/tsigkey_list
+
+    ZONES=$(run_bg ${BASH_ALIASES[os]} zone list -f value -c id)
+    for z in ${ZONES}; do
+        run_bg ${BASH_ALIASES[os]} recordset list ${z} '>>' "$DESIGNATE_PATH"/recordset_list
+        run_bg ${BASH_ALIASES[os]} zone share list ${z} '>>' "$DESIGNATE_PATH"/zone_share_list
+    done
+
     WORKER=$(oc get pods -l component=designate-worker -o custom-columns=NAME:.metadata.name --no-headers | head -n 1)
     # We can add the --all_pools flag when it is available in openstackclient
     run_bg /usr/bin/oc -n ${OSP_NS} exec -t ${WORKER} -- designate-manage pool show_config '>' "$DESIGNATE_PATH"/pool_list
