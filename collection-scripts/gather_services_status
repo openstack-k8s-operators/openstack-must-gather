@@ -68,7 +68,6 @@ get_openstack_status() {
     mkdir -p "$BASE_COLLECTION_PATH"/ctlplane
     run_bg ${BASH_ALIASES[os]} endpoint list '>' "$BASE_COLLECTION_PATH"/ctlplane/endpoints
     run_bg ${BASH_ALIASES[os]} service list '>' "$BASE_COLLECTION_PATH"/ctlplane/services
-    run_bg ${BASH_ALIASES[os]} network agent list '>' "$BASE_COLLECTION_PATH"/ctlplane/network_agent_list
 }
 
 # Rabbitmq info gathering -
