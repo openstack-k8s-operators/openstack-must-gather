@@ -44,7 +44,7 @@ cinder_trigger_gmr() {
         podname="${line% *}"
         svctype="${line##* }"
         [ "${svctype}" == '<none>' ] && continue
-        run_bg $oce $podname -c $svctype -- touch /etc/cinder
+        run_bg $oce $podname -c $svctype -- touch /var/lib/cinder
     done <<< "$svcs"
 }
 
