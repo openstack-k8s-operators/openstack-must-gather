@@ -3,6 +3,7 @@
 import json
 import yaml
 import base64
+from binascii import Error as binascii_error
 import argparse
 import re
 import os
@@ -43,6 +44,8 @@ PROTECT_KEYS = [
 
 CONNECTION_KEYS = ["rabbit", "database_connection",
                    "slave_connection", "sql_connection"]
+ERR_STR = "Not a valid string for masking"
+ERR_FORMAT = "Required a dict for masking"
 # Masking string
 MASK_STR = "**********"
 
@@ -187,6 +190,10 @@ class SecretMask():
         we need instead to parse this content and matches the
         pattern in the content itself.
         """
+        if not isinstance(data_map, dict):
+            print(f"Error while masking file: {self.path}")
+            return ERR_FORMAT
+
         d = dict()  # type: Dict[str, Any]
         for k, v in data_map.items():
             if len(v) == 0:
@@ -199,9 +206,14 @@ class SecretMask():
                 # mask the value of the key entirely
                 masked = MASK_STR
             else:
-                masked = self._apply_regex(base64.b64decode(v).decode())
-                if self.dump and re.search(conf_file_regex, k):
-                    self._writeFile('{}-{}'.format(self.path, k), masked)
+                try:
+                    masked = self._apply_regex(base64.b64decode(v).decode())
+                    if self.dump and re.search(conf_file_regex, k):
+                        self._writeFile('{}-{}'.format(self.path, k), masked)
+                except (binascii_error, UnicodeDecodeError):
+                    print(f"Error while masking key: {k}, for file: {self.path}")
+                    d[k] = ERR_STR
+                    continue
             # re-encode the entry
             d[k] = base64.b64encode(masked.encode()).decode()
         return d
