@@ -61,6 +61,8 @@ This is the list of available environmental variables:
 - `OPENSTACK_DATABASES`: comma separated list of OpenStack databases that should
   be dumped. It is possible to set it to `ALL` and dump all databases. By default
   this env var is unset, hence the database dump is skipped.
+- `FILTER_DB_CELLS`: When set to `true`, excludes cell databases from the dump.
+   Default: `false` (cell databases are included).
 - `ADDITIONAL_NAMESPACES`: comma separated list of additional namespaces where
   we want to gather the associated resources.
 - `DO_NOT_MASK`: This is an option for **CI only** purposes. It's set to 0 by
