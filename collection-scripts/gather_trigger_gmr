@@ -25,6 +25,9 @@ trigger_gmr() {
     "nova")
         nova_trigger_gmr
         ;;
+    "manila")
+        manila_trigger_gmr
+        ;;
     *) ;;
     esac
 
@@ -88,6 +91,21 @@ nova_trigger_gmr() {
     # as an investigation for later.
 }
 
+manila_trigger_gmr() {
+    # https://docs.openstack.org/manila/latest/contributor/guru_meditation_report.html
+    echo "Trigger GMR for Manila services"
+
+    # Get pod name and type of service for manila pods
+    svcs=`$oc get pod -l service=manila -o=custom-columns=N:.metadata.name,T:metadata.labels.component --no-headers`
+
+    # Manila uses files to trigger GMR
+    while read -r line; do
+        podname="${line% *}"
+        svctype="${line##* }"
+        [ "${svctype}" == '<none>' ] && continue
+        run_bg $oce $podname -c $svctype -- touch /var/lib/manila
+    done <<< "$svcs"
+}
 
 # get the list of existing ctlplane services (once) and
 # filter the whole list processing only services with an
