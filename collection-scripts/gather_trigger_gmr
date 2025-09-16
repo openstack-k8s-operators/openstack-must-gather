@@ -20,10 +20,13 @@ trigger_gmr() {
     service="$1"
     case "${service}" in
     "cinder")
-        cinder_trigger_gmr
+        gmr "cinder"
         ;;
     "nova")
         nova_trigger_gmr
+        ;;
+    "manila")
+        gmr "manila"
         ;;
     *) ;;
     esac
@@ -31,20 +34,31 @@ trigger_gmr() {
 }
 
 
-cinder_trigger_gmr() {
+# General GMR function that looks for the pod name and the service (based on
+# the service variable passed as input) and touches the file in the right
+# location (usually /var/lib/<service> according to the RHOSO containers and
+# how locations are chowned).
+gmr() {
     # https://docs.openstack.org/cinder/latest/contributor/gmr.html
-    echo "Trigger GMR for Cinder services"
+    # https://docs.openstack.org/manila/latest/contributor/guru_meditation_report.html
+    if [ -z "$1" ]; then
+        return
+    fi
 
-    # Get pod name and type of service for cinder pods
-    svcs=`$oc get pod -l service=cinder -o=custom-columns=N:.metadata.name,T:metadata.labels.component --no-headers`
+    local service="$1"
+    echo "Trigger GMR for Service $1"
+
+    # Get pod name and type of service
+    svcs=`$oc get pod -l service=$service -o=custom-columns=N:.metadata.name,T:metadata.labels.component --no-headers`
 
     # Cinder uses files to trigger GMR because volume and backup share the PID
     # with the host so we don't know what PID the service has
+    # Manila follows the same approach
     while read -r line; do
         podname="${line% *}"
         svctype="${line##* }"
         [ "${svctype}" == '<none>' ] && continue
-        run_bg $oce $podname -c $svctype -- touch /var/lib/cinder
+        run_bg $oce $podname -c $svctype -- touch /var/lib/$service
     done <<< "$svcs"
 }
 
@@ -87,7 +101,6 @@ nova_trigger_gmr() {
     # NOTE(gibi): I failed to trigger GMR in nova-metadata so that remains
     # as an investigation for later.
 }
-
 
 # get the list of existing ctlplane services (once) and
 # filter the whole list processing only services with an
