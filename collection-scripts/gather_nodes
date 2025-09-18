@@ -9,6 +9,7 @@ fi
 mkdir -p "${NODES_COLLECTION_PATH}"
 for node in $(/usr/bin/oc get nodes -o custom-columns=NAME:.metadata.name --no-headers); do
     run_bg /usr/bin/oc get nodes "${node}" -o yaml '>' "${NODES_COLLECTION_PATH}/${node}.yaml"
+    run_bg /usr/bin/oc describe nodes "${node}" '>' "${NODES_COLLECTION_PATH}/${node}.describe"
 done
 
 [[ $CALLED -eq 1 ]] && wait_bg
