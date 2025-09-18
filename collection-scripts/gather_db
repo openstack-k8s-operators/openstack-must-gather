@@ -17,7 +17,27 @@ function dump_db {
     local dbpass="$3"
     local dbname="$4"
     local dump="${4:-openstack_databases}"
-    run_bg /usr/bin/oc -n $ns rsh -c galera $dbpod mysqldump -uroot -p$dbpass $DB_OPT $dbname > "$DB_DUMP"/$dump.sql
+    # skip the service db dump if it does not exist on the current $dbpod
+    if ! /usr/bin/oc exec -n "$ns" "$dbpod" -- mysql -u root -p"$dbpass" -e "USE $dbname;" 2>/dev/null; then
+        echo "Database $dbname does not exist on $dbpod, skipping"
+        return
+    fi
+    # database dump in dbs/<namespace>/<galera_pod>-<service>.sql path
+    run_bg /usr/bin/oc -n $ns rsh -c galera $dbpod mysqldump -uroot -p$dbpass $DB_OPT $dbname > "$DB_DUMP"/"$ns"/$dbpod-$dump.sql
+}
+
+# Select the (first) galera pod for each deployment, and exclude gallera-cellX
+# when FILTER_DB_CELLS is set to true.
+# Note: this parameter is false by default, so we usually include cell dbs
+function get_dbpod() {
+  local namespace="$1"
+  local labels="app=galera,apps.kubernetes.io/pod-index=0"
+  local cmd="oc -n $namespace get pod -l $labels --no-headers -o=custom-columns=NAME:.metadata.name"
+  if [[ "${FILTER_DB_CELLS}" == "true" ]]; then
+      cmd="$cmd | grep -v cell"
+  fi
+  cmd="$cmd | tr '\n' ' '"
+  eval "$cmd"
 }
 
 # If unset or an empty string return/exit
@@ -28,26 +48,35 @@ if [ "${OPENSTACK_DATABASES-unset}" = "unset" ] || [[ -z "${OPENSTACK_DATABASES}
     return
 fi
 
+if [ "${FILTER_DB_CELLS-unset}" = "unset" ] || [[ -z "${FILTER_DB_CELLS}" ]]; then
+    # do not skip cells db if not explicitly set
+    FILTER_DB_CELLS="false"
+fi
+
 # Create the db_dump directory in the BASE_COLLECTION_PATH
 mkdir -p "$DB_DUMP"
 data=$(/usr/bin/oc get openstackcontrolplane --all-namespaces -o go-template='{{range $ins,$service := .items}}{{printf "%s %s\n" $service.metadata.namespace $service.spec.secret}}{{end}}')
 while read -r namespace secret; do
     [[ -z "$namespace" || -z "$secret" ]] && break
-    # get the pwd used to run mysqldump from the galera pod
+    mkdir -p "$DB_DUMP/$namespace"
+    # get the pwd used to run mysqldump from the galera pod in the current namespace
     dbpass=$(/usr/bin/oc get -n $namespace secret/"$secret" -o go-template='{{ index .data "AdminPassword" | base64decode }}')
-    # select the (first) galera pod (and exclude the galera-cellX database services)
-    dbpod="$(/usr/bin/oc -n $namespace get pod -l app=galera --no-headers -o=custom-columns=NAME:.metadata.name | grep -v cell | tr '\n' ' ' | awk '{print $1}')"
-    if [[ "$OPENSTACK_DATABASES" == "ALL" ]]; then
-        DB_OPT="$DB_OPT --all-databases"
-        # dump all databases
-        dump_db "$dbpod" "$namespace" "$dbpass"
-    else
-        # Convert the database list to an array
-        IFS=',' read -r -a OPENSTACK_DATABASES <<< "$OPENSTACK_DATABASES"
-        # for each service dump the associated database (if exists)
-        for service in "${OPENSTACK_DATABASES[@]}"; do
-            dump_db "$dbpod" "$namespace" "$dbpass" "$service"
-        done
-    fi
+    # get the list of galera pods in the current namespace
+    dbpods="$(get_dbpod $namespace)"
+    for dbinst in $dbpods; do
+        if [[ "$OPENSTACK_DATABASES" == "ALL" ]]; then
+            DB_OPT="$DB_OPT --all-databases"
+            # dump all databases
+            dump_db "$dbinst" "$namespace" "$dbpass"
+        else
+            # Convert the database list to an array of services that we
+            # iterate to selectively dump each of them
+            IFS=',' read -r -a OPENSTACK_DBS <<< "$OPENSTACK_DATABASES"
+            # for each service dump the associated database (if exists)
+            for service in "${OPENSTACK_DBS[@]}"; do
+                dump_db "$dbinst" "$namespace" "$dbpass" "$service"
+            done
+        fi
+    done
 done <<< "$data"
 [[ $CALLED -eq 1 ]] && wait_bg
