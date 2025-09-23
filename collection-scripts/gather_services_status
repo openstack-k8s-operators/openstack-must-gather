@@ -59,6 +59,9 @@ get_status() {
     "rabbitmq")
         get_rabbitmq_status
         ;;
+    "ovn")
+        get_ovn_status
+        ;;
     *) ;;
     esac
 }
@@ -234,10 +237,37 @@ get_designate_status() {
     run_bg /usr/bin/oc -n ${OSP_NS} exec -t ${WORKER} -- designate-manage pool show_config '>' "$DESIGNATE_PATH"/pool_list
 }
 
+# OVN service gathering - database files and status info
+get_ovn_status() {
+    local OVN_PATH="$BASE_COLLECTION_PATH/ctlplane/ovn"
+    mkdir -p "$OVN_PATH"
+
+    # Copy OVN NB database
+    local nb_pod="ovsdbserver-nb-0"
+    if /usr/bin/oc -n "${OSP_NS}" get pod "${nb_pod}" &>/dev/null; then
+        echo "Copying OVN NB database from ${nb_pod}"
+        run_bg /usr/bin/oc cp -n "${OSP_NS}" "${nb_pod}:/etc/ovn/ovnnb_db.db" "${OVN_PATH}/ovnnb_db.db"
+    else
+        echo "Pod ${nb_pod} not found in namespace ${OSP_NS}, skipping OVN NB database collection"
+    fi
+
+    # Copy OVN SB database
+    local sb_pod="ovsdbserver-sb-0"
+    if /usr/bin/oc -n "${OSP_NS}" get pod "${sb_pod}" &>/dev/null; then
+        echo "Copying OVN SB database from ${sb_pod}"
+        run_bg /usr/bin/oc cp -n "${OSP_NS}" "${sb_pod}:/etc/ovn/ovnsb_db.db" "${OVN_PATH}/ovnsb_db.db"
+    else
+        echo "Pod ${sb_pod} not found in namespace ${OSP_NS}, skipping OVN SB database collection"
+    fi
+}
+
 # first we gather generic status of the openstack ctlplane
 # then we process the existing services (if an associated
 # function has been defined)
 run_bg get_status "openstack"
+
+# gather ovn status
+run_bg get_status "ovn"
 
 # we gather rabbitmq status in advance before moving to the
 # dynamically generated list of services
