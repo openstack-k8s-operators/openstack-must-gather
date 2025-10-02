@@ -5,10 +5,13 @@
 #   SOS_SERVICES: comma separated list of services to gather SOS reports from,
 #                 empty string skips sos report gathering.  eg: cinder,glance
 #                 Defaults to all of them.
+
 #   SOS_ONLY_PLUGINS: list of sos report plugins to use. Empty string to run
 #                     them all. Defaults to: block,cifs,crio,devicemapper,
-#                     devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,
-#                     process,processor,selinux,scsi,udev,openstack_edpm
+#                     devices,firewall_tables,firewalld,iscsi,lvm2,memory,
+#                     multipath,nfs,nis,nvme,podman,process,processor,selinux,
+#                     scsi,udev,openstack_edpm
+
 #   SOS_DECOMPRESS: bool to disable decompressing sos reports. Set to 0 to disable
 #                   or set to 1 to enable. Defaults to 1
 #
@@ -40,7 +43,7 @@ else
 fi
 
 # Default to some plugins if SOS_ONLY_PLUGINS is not set
-SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev,logs,crypto}"
+SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,firewall_tables,firewalld,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev,logs,crypto}"
 if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
 fi
