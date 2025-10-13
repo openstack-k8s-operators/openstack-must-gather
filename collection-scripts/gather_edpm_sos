@@ -12,7 +12,9 @@
 #                     plugins in the list are run.
 #   SOS_DECOMPRESS: bool to disable decompressing sos reports. Set to 0 to disable
 #                   or set to 1 to enable. Defaults to 1
-#
+#  SOS_EDPM_JOURNAL_SIZE: Limit the size of collected journals in MiB. Must be
+#                         a positive integer. If not set or invalid, journal
+#                         size limiting is ignored.
 
 # When called from the shell directly
 if [[ -z "$DIR_NAME" ]]; then
@@ -30,6 +32,15 @@ if [[ -z "$SOS_EDPM" ]]; then
 
 else
     IFS=',' read -r -a SOS_EDPM <<< "$SOS_EDPM"
+fi
+
+# --journal-size: Limit the size of collected journals in MiB
+if [[ -z "$SOS_EDPM_JOURNAL_SIZE" || ! "$SOS_EDPM_JOURNAL_SIZE" =~ ^[0-9]+$ ]]; then
+    echo "Journal size limit not set or invalid: ignoring"
+    SOS_JOURNAL=""
+else
+    echo "Setting journal size limit to ${SOS_EDPM_JOURNAL_SIZE} MiB"
+    SOS_JOURNAL="--journal-size $SOS_EDPM_JOURNAL_SIZE"
 fi
 
 # Default to some profiles if SOS_EDPM_PROFILES is not set
@@ -67,7 +78,7 @@ gather_edpm_sos () {
         done
     fi
 
-    SSH sudo "bash -c \"rm -rf $TMPDIR && mkdir $TMPDIR && sos report --batch --all-logs --tmp-dir=$TMPDIR $SOS_LIMIT\""
+    SSH sudo "bash -c \"rm -rf $TMPDIR && mkdir $TMPDIR && sos report --batch --all-logs --tmp-dir=$TMPDIR $SOS_JOURNAL $SOS_LIMIT\""
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
         echo "Failed to run sos report on ${node}, won't retrieve data"
