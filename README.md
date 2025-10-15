@@ -58,6 +58,8 @@ This is the list of available environmental variables:
 - `SOS_EDPM_PROFILES`: List of sos report profiles to use. Empty string to run
   them all. Defaults to: `container,openstack_edpm,system,storage,virt`
 - `SOS_EDPM_PLUGINS`: List of sos report plugins to use. This is optional.
+- `SOS_EDPM_JOURNAL_SIZE`: Limit the size of collected journals in MiB. Must be
+  a positive integer. If not set or invalid, journal size limiting is ignored.
 - `OPENSTACK_DATABASES`: comma separated list of OpenStack databases that should
   be dumped. It is possible to set it to `ALL` and dump all databases. By default
   this env var is unset, hence the database dump is skipped.
