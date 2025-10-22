@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clean-config
+  namespace: openstack
+data:
+  debug: "true"
+  log_level: INFO
+  config.conf: |
+    [DEFAULT]
+    debug = true
+    log_level = INFO
+
+    [api]
+    bind_host = 0.0.0.0
+    bind_port = 8080
+  readme: |
+    This is a sample configuration file
+    that does not contain any sensitive data
+    like passwords or credentials.
+

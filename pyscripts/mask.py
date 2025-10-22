@@ -44,8 +44,11 @@ PROTECT_KEYS = [
 
 CONNECTION_KEYS = ["rabbit", "database_connection",
                    "slave_connection", "sql_connection"]
+
+# Error messages
 ERR_STR = "Not a valid string for masking"
 ERR_FORMAT = "Required a dict for masking"
+
 # Masking string
 MASK_STR = "**********"
 
@@ -62,6 +65,16 @@ con_regex = r'((%s)\s*://)(\w*):(.*)(@(.*))' % "|".join(CONNECTION_KEYS)
 key_regex = r'(%s)$' % "|".join(PROTECT_KEYS)
 conf_file_regex = r'(.*).(conf)$'
 regexes = [gen_regex, con_regex]
+
+
+# Custom YAML representer to preserve multi-line strings as block scalars
+def str_representer(dumper: Any, data: str) -> Any:
+    if '\n' in data:
+        return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
+    return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+
+
+yaml.add_representer(str, str_representer)
 
 
 class SecretMask():
@@ -219,6 +232,127 @@ class SecretMask():
         return d
 
 
+class PlaintextMask():
+    """
+    Mask sensitive data in plain text YAML files (ConfigMaps and CRs).
+    Unlike SecretMask, this works on non-base64 encoded data.
+    """
+
+    def __init__(self, path: Optional[str] = None) -> None:
+        self.path: Union[str, None] = path
+
+    def mask(self) -> bool:
+        """
+        Read a k8s resource (ConfigMap or CR) dumped as yaml and process
+        recursively to mask any sensitive information.
+        """
+        resource = self._readYaml()
+        if not resource or len(resource) == 0:
+            return True
+
+        # Recursively mask the entire resource
+        self._applyMaskRecursive(resource)
+
+        # Write the masked file
+        self._writeYaml(resource)
+        return True
+
+    def _readYaml(self) -> Dict[str, Any]:
+        """
+        Read and Load the k8s resource dumped as yaml file.
+        """
+        try:
+            assert self.path is not None
+            with open(self.path, 'r') as f:
+                resource = yaml.safe_load(f)
+            return resource if resource else {}
+        except (FileNotFoundError, yaml.YAMLError) as e:
+            print(f"Error while reading YAML {self.path}: {e}")
+            return {}
+
+    def _writeYaml(self, resource: Any) -> None:
+        """
+        Re-write the masked resource to the same path.
+        """
+        try:
+            assert self.path is not None
+            with open(self.path, 'w') as f:
+                # Write with settings to preserve readability
+                yaml.dump(resource, f, default_flow_style=False,
+                          allow_unicode=True, sort_keys=False)
+        except (IOError, yaml.YAMLError) as e:
+            print(f"Error while writing the masked file {self.path}: {e}")
+
+    def _applyMaskRecursive(self, obj: Any) -> Any:
+        """
+        Recursively traverse the object and mask sensitive data.
+        Two-step strategy:
+        1. If key name is sensitive AND value is single-line -> fully mask
+        2. If multi-line (has newlines) -> parse content with regex
+        """
+        if isinstance(obj, dict):
+            for key, value in obj.items():
+                if isinstance(value, str):
+                    # If key name matches sensitive pattern and value is single-line, fully mask
+                    # This catches: password: secret123, transport_url: mysql://..., etc.
+                    if re.search(key_regex, key) and '\n' not in value:
+                        obj[key] = MASK_STR
+                    else:
+                        # Parse content to mask sensitive parts
+                        # This handles: customServiceConfig blocks (multi-line), long configs, etc.
+                        obj[key] = self._applyRegex(value)
+                elif isinstance(value, (dict, list)):
+                    # Recursively process nested structures
+                    self._applyMaskRecursive(value)
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                if isinstance(item, str):
+                    obj[i] = self._applyRegex(item)
+                elif isinstance(item, (dict, list)):
+                    self._applyMaskRecursive(item)
+        return obj
+
+    def _applyRegex(self, text: str) -> str:
+        """
+        Apply regex patterns to mask sensitive information in text.
+        Handles both single-line and multi-line strings.
+        """
+        for pattern in regexes:
+            text = re.sub(pattern, r"\1{}".format(MASK_STR), text, flags=re.MULTILINE)
+        return text
+
+
+def get_resource_kind(path: str) -> Optional[str]:
+    """
+    Read a YAML file and return its 'kind' field to determine resource type.
+    Returns None if the file cannot be read or doesn't have a 'kind' field.
+    """
+    try:
+        with open(path, 'r') as f:
+            resource = yaml.safe_load(f)
+            if isinstance(resource, dict):
+                return resource.get('kind', None)
+    except (FileNotFoundError, yaml.YAMLError) as e:
+        print(f"Error while reading YAML to determine kind: {e}")
+    return None
+
+
+def mask_resource(path: str, dump_conf: bool = False) -> bool:
+    """
+    Dispatcher function that determines the resource type and applies
+    the appropriate masking strategy:
+    - Secrets: Use SecretMask (base64 decode/encode)
+    - ConfigMaps/CRs/Other: Use PlaintextMask (direct text masking)
+    """
+    kind = get_resource_kind(path)
+
+    if kind == "Secret":
+        return SecretMask(path, dump_conf).mask()
+    else:
+        # ConfigMaps, CRs, and any other resource type
+        return PlaintextMask(path).mask()
+
+
 def parse_opts(argv: Any) -> Any:
     """
     Utility for the main function: it provides a way to parse
@@ -247,7 +381,12 @@ if __name__ == '__main__':
         # argument and process all the files found in
         # that directory
         for root, subdirs, files in os.walk(OPTS.dir):
-            [SecretMask(os.path.join(root, f), OPTS.dump_conf).mask() for f in files]
+            for f in files:
+                # Skip non-YAML files
+                if not f.endswith('.yaml') and not f.endswith('.yml'):
+                    continue
+                file_path = os.path.join(root, f)
+                mask_resource(file_path, OPTS.dump_conf)
 
     if OPTS.path is not None and os.path.exists(OPTS.path):
-        SecretMask(OPTS.path, OPTS.dump_conf).mask()
+        mask_resource(OPTS.path, OPTS.dump_conf)

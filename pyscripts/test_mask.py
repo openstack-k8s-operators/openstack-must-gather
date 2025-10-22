@@ -30,9 +30,15 @@ class TestSecretMask(unittest.TestCase):
         - Process using the SecreMask module
         - assert the 'data' content of the secret is
           different
+        Note: Some test samples (secret4, secret5) intentionally
+        contain malformed data to test error handling. The error
+        messages printed during test execution are expected.
         """
         for root, subdirs, files in os.walk(SAMPLE_DIR):
             for f in files:
+                # Skip non-YAML files (e.g., README.md)
+                if not f.endswith('.yaml') and not f.endswith('.yml'):
+                    continue
                 print("Processing file %s" % f)
                 actual = self._read_sample(os.path.join(root, f))
                 # Mask secret by processing the data section
