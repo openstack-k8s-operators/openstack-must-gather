@@ -7,6 +7,10 @@ if [[ -z "$DIR_NAME" ]]; then
     source "${DIR_NAME}/common.sh"
 fi
 
+# This option is used for CI only purposes and
+# is disabled by default
+DO_NOT_MASK=${DO_NOT_MASK:-0}
+
 # Resource list
 crs=()
 
@@ -38,3 +42,8 @@ for res in "${crs[@]}"; do
 done
 
 [[ $CALLED -eq 1 ]] && wait_bg
+
+if [[ "${DO_NOT_MASK}" -eq 0 ]]; then
+    # All CRs have been collected, apply masking on the CRs directory tree
+    /usr/bin/mask.py --dir "${BASE_COLLECTION_PATH}/namespaces"
+fi
