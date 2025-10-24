@@ -7,6 +7,9 @@ if [[ -z "$DIR_NAME" ]]; then
     source "${DIR_NAME}/common.sh"
 fi
 
+# This option is used for CI only purposes and
+# is disabled by default
+DO_NOT_MASK=${DO_NOT_MASK:-0}
 
 get_cm() {
     local NS="$1"
@@ -42,6 +45,10 @@ if [[ $CALLED -eq 1 ]]; then
     fi
 
     gather_services_cm "$NS"
-
     wait_bg
+
+    if [[ "${DO_NOT_MASK}" -eq 0 ]]; then
+        # All configmaps have been collected, apply masking on the configmaps directory
+        /usr/bin/mask.py --dir "${NAMESPACE_PATH}/${NS}/configmaps"
+    fi
 fi
