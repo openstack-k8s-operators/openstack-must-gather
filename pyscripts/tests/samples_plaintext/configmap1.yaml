@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-config-1
+  namespace: openstack
+data:
+  password: mysecretpassword123
+  username: admin
+  config.conf: |
+    [database]
+    connection = mysql://dbuser:dbpass@localhost/keystone
+    username = keystone_user
+    password = keystone_pass
+
+    [rabbitmq]
+    transport_url = rabbit://guest:guestpass@rabbitmq:5672/
+
