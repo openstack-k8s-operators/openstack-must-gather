@@ -34,6 +34,14 @@ gather_services_cm () {
     for svc in "${OSP_SERVICES[@]}"; do
             get_cm "$NS" "$svc"
     done
+
+    # Ensure background configmap gathering tasks are done before masking
+    wait_bg
+
+    if [[ "${DO_NOT_MASK}" -eq 0 ]]; then
+        # All configmaps have been collected, apply masking on the configmaps directory
+        /usr/bin/mask.py --dir "${NAMESPACE_PATH}/${NS}/configmaps"
+    fi
 }
 
 
@@ -45,10 +53,4 @@ if [[ $CALLED -eq 1 ]]; then
     fi
 
     gather_services_cm "$NS"
-    wait_bg
-
-    if [[ "${DO_NOT_MASK}" -eq 0 ]]; then
-        # All configmaps have been collected, apply masking on the configmaps directory
-        /usr/bin/mask.py --dir "${NAMESPACE_PATH}/${NS}/configmaps"
-    fi
 fi
