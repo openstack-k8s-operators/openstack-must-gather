@@ -53,6 +53,9 @@ get_status() {
     "glance")
         get_glance_status
         ;;
+    "watcher")
+        get_watcher_status
+        ;;
     "designate")
         get_designate_status
         ;;
@@ -213,6 +216,21 @@ get_glance_status() {
     mkdir -p "$GLANCE_PATH"
     run_bg ${BASH_ALIASES[os]} image task list '>' "$GLANCE_PATH"/task_list
 }
+
+# Watcher service gathering - task
+get_watcher_status() {
+    local WATCHER_PATH="$BASE_COLLECTION_PATH/ctlplane/watcher"
+    mkdir -p "$WATCHER_PATH"
+    run_bg ${BASH_ALIASES[os]} optimize goal list '>' "$WATCHER_PATH"/goal_list
+    run_bg ${BASH_ALIASES[os]} optimize strategy list '>' "$WATCHER_PATH"/strategy_list
+    run_bg ${BASH_ALIASES[os]} optimize audittemplate list '>' "$WATCHER_PATH"/audittemplate_list
+    run_bg ${BASH_ALIASES[os]} optimize audit list '>' "$WATCHER_PATH"/audit_list
+    run_bg ${BASH_ALIASES[os]} optimize actionplan list '>' "$WATCHER_PATH"/actionplan_list
+    run_bg ${BASH_ALIASES[os]} optimize action list '>' "$WATCHER_PATH"/action_list
+    run_bg ${BASH_ALIASES[os]} optimize service list '>' "$WATCHER_PATH"/watcher_service_list
+    run_bg ${BASH_ALIASES[os]} optimize datamodel list '>' "$WATCHER_PATH"/watcher_datamodel_list
+}
+
 
 # Designate service gathering - dns resources,
 get_designate_status() {
