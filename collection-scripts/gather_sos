@@ -174,7 +174,10 @@ echo "Will retrieve SOS reports from nodes ${nodes//$'\n'/ }"
 for node in $nodes; do
     [[ -z "$node" ]] && continue
     # Gather SOS report for the node in background
-    run_bg gather_node_sos "$node"
+    # run_bg cannot be used here as that only support invoking external scripts
+    # or executables and not functions
+    wait_for_bg_slot
+    gather_node_sos "$node" &
 done
 
 [[ $CALLED -eq 1 ]] && wait_bg

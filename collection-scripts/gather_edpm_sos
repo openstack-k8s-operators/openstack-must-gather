@@ -132,7 +132,10 @@ data=$(oc get openstackdataplanenodesets --all-namespaces -o json | jq -j '
 while read -r node address username secret namespace; do
     [[ -z "$node" ]] && continue
     if [[ "${SOS_EDPM[0]}" == "all" || "${SOS_EDPM[*]}" == *"${node}"* ]]; then
-        run_bg gather_edpm_sos $node $address $username $secret $namespace
+        # run_bg cannot be used here as that only support invoking external scripts
+        # or executables and not functions
+        wait_for_bg_slot
+        gather_edpm_sos $node $address $username $secret $namespace &
     fi
 done <<< "$data"
 
