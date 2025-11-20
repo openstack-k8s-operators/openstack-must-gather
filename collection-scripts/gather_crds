@@ -10,7 +10,7 @@ fi
 # Resource list
 crds=()
 
-for i in $(/usr/bin/oc get crd | grep openstack.org | awk '{print $1}')
+for i in $(/usr/bin/oc get crd | grep -E "openstack|rabbitmq" | awk '{print $1}')
 do
   crds+=("$i")
 done
