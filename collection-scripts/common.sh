@@ -45,6 +45,7 @@ declare resources=(
     "issuer"
     "certificaterequests"
     "imagestream"
+    "poddisruptionbudgets"
 )
 export resources
 
