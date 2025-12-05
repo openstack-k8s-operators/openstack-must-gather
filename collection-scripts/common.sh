@@ -76,6 +76,7 @@ declare -a OSP_SERVICES=(
     "aodh"
     "logging"
     "instanceha"
+    "watcher"
 )
 export OSP_SERVICES
 
