@@ -21,6 +21,7 @@ declare -a DEFAULT_NAMESPACES=(
     "cert-manager"
     "openshift-nmstate"
     "openshift-operators-redhat"
+    "openshift-operators"
     "openshift-logging"
     "${METALLB_NAMESPACE}"
 )
@@ -77,6 +78,7 @@ declare -a OSP_SERVICES=(
     "logging"
     "instanceha"
     "watcher"
+    "cloudkitty"
 )
 export OSP_SERVICES
 
