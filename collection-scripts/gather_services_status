@@ -65,6 +65,9 @@ get_status() {
     "ovn")
         get_ovn_status
         ;;
+    "cloudkitty")
+        get_cloudkitty_status
+        ;;
     *) ;;
     esac
 }
@@ -271,6 +274,18 @@ get_ovn_status() {
         run_bg /usr/bin/oc cp -n "${OSP_NS}" "${sb_pod}:/etc/ovn/ovnsb_db.db" "${OVN_PATH}/ovnsb_db.db"
     else
         echo "Pod ${sb_pod} not found in namespace ${OSP_NS}, skipping OVN SB database collection"
+    fi
+}
+
+# Cloudkitty service gathering - module list
+get_cloudkitty_status() {
+    local CLOUDKITTY_PATH="$BASE_COLLECTION_PATH/ctlplane/cloudkitty"
+    if /usr/bin/oc -n ${OSP_NS} get cloudkitty cloudkitty &> /dev/null; then
+        # For `openstack metric list` command to work we need ceilometer
+        # in the openstack as well as metricstorage deployed
+        # on openshift.
+        mkdir -p "$CLOUDKITTY_PATH"
+        run_bg ${BASH_ALIASES[os]} rating module list '>' "$CLOUDKITTY_PATH"/module_list
     fi
 }
 
