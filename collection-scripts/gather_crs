@@ -14,11 +14,7 @@ DO_NOT_MASK=${DO_NOT_MASK:-0}
 # Resource list
 crs=()
 
-# Explictly adding rabbit in the grep because its CRD is named with a different domain.
-# Also adding monitoring.rhobs, because telemetry uses observability-operator
-# to deploy a `MonitoringStack` for storing and scraping metrics.
-# Adding grafana.com, observability.openshift.io and logging.openshift.io because of resources used by telemetry logging.
-for i in $(/usr/bin/oc get crd | grep -E "(openstack|rabbitmq|monitoring|grafana|observability\.openshift|logging\.openshift)\.(org|com|rhobs|io)" | awk '{print $1}')
+for i in $(get_matching_crds)
 do
   crs+=("$i")
 done

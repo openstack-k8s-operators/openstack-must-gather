@@ -77,6 +77,51 @@ This is the list of available environmental variables:
   deleted after the archive is created. Defaulted to 0.
 - `SUPPORT_TOOLS`: The OpenShift support-tools container image. It allows to
   override the image location for disconnected environments.
+- `OMC`: Set to `true` to enable OMC (OpenShift Must-Gather Client) compatibility
+  mode. When enabled, the collection uses `oc adm inspect` to create a standard
+  Kubernetes directory structure compatible with the [omc tool](https://github.com/gmeghnag/omc).
+  Defaults to `false` (regular OpenStack-optimized structure).
+
+### OMC Integration
+
+openstack-must-gather supports integration with [OMC (OpenShift Must-Gather Client)](https://github.com/gmeghnag/omc),
+a powerful tool for analyzing Kubernetes must-gather data. When `OMC=true` is set,
+the collection creates a standard Kubernetes directory structure that enables
+advanced analysis capabilities while maintaining full resource coverage.
+
+#### OMC-Compatible Collection
+```bash
+oc adm must-gather \
+  --image=quay.io/openstack-k8s-operators/openstack-must-gather \
+  --dest-dir=/home/stack/must-gather-omc \
+  -- SOS= SOS_SERVICES= OMC=true OPENSTACK_DATABASES=ALL gather
+```
+
+#### Analyzing with OMC
+After collection, you can use OMC commands to navigate and analyze resources:
+```bash
+# Install OMC tool
+go install github.com/gmeghnag/omc@latest
+
+# Navigate OpenStack resources
+omc get glance
+omc get nova  
+omc get neutron
+
+# Explore network resources
+omc get net-attach-def
+omc get nncp
+omc get ipaddresspools
+
+# Examine nodes and infrastructure
+omc get nodes
+omc describe namespace openstack
+```
+
+The OMC mode provides access to the same comprehensive resource collection as
+regular mode, including OpenStack services, network resources, secrets, and
+monitoring components, but organized in a standard Kubernetes structure for
+optimal tool compatibility.
 
 ### Inspect gathered data
 
