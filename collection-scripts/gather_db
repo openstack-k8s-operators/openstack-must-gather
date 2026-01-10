@@ -64,7 +64,7 @@ while read -r namespace secret; do
     # get the list of galera pods in the current namespace
     dbpods="$(get_dbpod $namespace)"
     for dbinst in $dbpods; do
-        if [[ "$OPENSTACK_DATABASES" == "ALL" ]]; then
+        if [[ "$OPENSTACK_DATABASES" == "ALL" ]] || [[ "$OPENSTACK_DATABASES" == "all" ]]; then
             DB_OPT="$DB_OPT --all-databases"
             # dump all databases
             dump_db "$dbinst" "$namespace" "$dbpass"
