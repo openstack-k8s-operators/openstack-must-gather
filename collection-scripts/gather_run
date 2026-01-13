@@ -50,6 +50,7 @@ else
     echo "OMC mode: Collecting OLM resources (subscriptions, CSVs, etc.) in OMC format"
     # Collect resources using oc adm inspect for OMC compatibility
     collect_omc_inspect
+    collect_omc_post
 fi
 
 # dump the openstack database

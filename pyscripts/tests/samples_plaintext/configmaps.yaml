@@ -1,0 +1,91 @@
+---
+apiVersion: v1
+items:
+- apiVersion: v1
+  data:
+    dns: |
+      server=192.168.122.10
+      no-negcache
+  kind: ConfigMap
+  metadata:
+    labels:
+      dnsmasq.openstack.org/name: dns
+      dnsmasq.openstack.org/namespace: openstack
+      dnsmasq.openstack.org/uid: 9c92792a-88fe-4be9-8f1d-8d3a1254541c
+    name: dns
+    namespace: openstack
+- apiVersion: v1
+  data:
+    horizon.json: |
+      {
+          "command": "/usr/sbin/httpd -DFOREGROUND",
+          "config_files": [
+              {
+                  "source": "/var/lib/config-data/default/httpd.conf",
+                  "dest": "/etc/httpd/conf/httpd.conf",
+                  "owner": "apache:apache",
+                  "perm": "0644"
+              }
+          ]
+      }
+    local_settings.py: |
+      # Horizon configuration
+      SECRET_KEY = secret_key_generate(
+          key_file='/etc/openstack-dashboard/.horizon-secret'
+      )
+
+      # Database connection
+      DATABASES = {
+          'default': {
+              'ENGINE': 'django.db.backends.mysql',
+              'NAME': 'horizon',
+              'USER': 'horizon',
+              'PASSWORD': 'supersecret123',
+              'HOST': 'mariadb.openstack.svc',
+              'PORT': '3306'
+          }
+      }
+  kind: ConfigMap
+  metadata:
+    creationTimestamp: "2026-01-12T13:21:21Z"
+    labels:
+      horizon.openstack.org/name: horizon
+      horizon.openstack.org/namespace: openstack
+    name: horizon-config-data
+    namespace: openstack
+    resourceVersion: "41046"
+    uid: 82ad19b3-96db-4265-a8d2-296829ddfc45
+- apiVersion: v1
+  data:
+    01-config.conf: |
+      [DEFAULT]
+      log_file = /var/log/nova/nova.log
+      transport_url = rabbit://guest:secretpassword@rabbitmq.openstack.svc:5672/
+
+      [api_database]
+      connection = mysql+pymysql://nova:dbpassword123@mariadb.openstack.svc/nova_api
+
+      [database]
+      connection = mysql+pymysql://nova:dbpassword123@mariadb.openstack.svc/nova
+    nova_metadata.ini: |
+      [cache]
+      backend = dogpile.cache.memcached
+      backend_argument = url:memcached.openstack.svc:11211
+
+      [keystone_authtoken]
+      auth_url = https://keystone-internal.openstack.svc:5000
+      username = nova
+      password = serviceuserpass456
+      user_domain_name = Default
+      project_name = service
+      project_domain_name = Default
+  kind: ConfigMap
+  metadata:
+    labels:
+      nova.openstack.org/name: nova
+      nova.openstack.org/namespace: openstack
+    name: nova-config-data
+    namespace: openstack
+kind: ConfigMapList
+metadata:
+  selfLink: /api/v1/namespaces/openstack/configmaps

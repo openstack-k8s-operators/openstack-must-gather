@@ -98,6 +98,20 @@ function collect_webhooks_omc {
     fi
 }
 
+# Post processing actions on gathered files
+function collect_omc_post {
+    local CMS="core/configmaps.yaml"
+    local MASK_OPT=""
+    [[ "${DO_NOT_MASK}" -eq 0 ]] && MASK_OPT="--mask"
+    for ns in "${DEFAULT_NAMESPACES[@]}"; do
+        if check_namespace "$ns"; then
+            mkdir -p "$NAMESPACE_PATH/${ns}/configmaps"
+            # Split ConfigMapList and apply masking if required
+            /usr/bin/cmaps.py "${NAMESPACE_PATH}/${ns}/$CMS" "${NAMESPACE_PATH}/${ns}/configmaps" "$MASK_OPT"
+        fi
+    done
+}
+
 # Main OMC resource gathering
 function collect_omc_inspect {
     # Collect cluster-scoped packagemanifests
