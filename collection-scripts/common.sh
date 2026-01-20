@@ -2,6 +2,9 @@
 
 source "${DIR_NAME}/bg.sh"
 
+# OMC compatibility mode
+export OMC=${OMC:-true}
+
 export OSP_NS="${OSP_NS-openstack}"
 export OSP_OPERATORS_NS="${OSP_OPERATORS_NS-openstack-operators}"
 
@@ -49,6 +52,16 @@ declare resources=(
     "poddisruptionbudgets"
 )
 export resources
+
+# Global CRD matching function for consistent discovery across all scripts
+# Explictly adding rabbit because its CRD is named with a different domain.
+# Also adding monitoring.rhobs, because telemetry uses observability-operator
+# to deploy a `MonitoringStack` for storing and scraping metrics.
+# Adding grafana.com, observability.openshift.io and logging.openshift.io
+# because of resources used by telemetry logging.
+get_matching_crds() {
+    /usr/bin/oc get crd | awk '/(openstack|rabbitmq|monitoring|grafana|observability\.openshift|logging\.openshift|nmstate|metallb|k8s\.cni\.cncf)\.(org|com|rhobs|io)/ {print $1}'
+}
 
 # list of osp services that might be present in the ctlplane
 declare -a OSP_SERVICES=(

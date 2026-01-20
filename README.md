@@ -12,19 +12,41 @@ oc adm must-gather --image=quay.io/openstack-k8s-operators/openstack-must-gather
 The command above will create a local directory where logs, configs and status
 of the OpenStack control plane services are dumped.
 
-In particular the `openstack-must-gather` will get a dump of:
+**NOTE:**
 
-- Service logs: Retrieved by the output of the pods (and operators) associated to the deployed
-  services
-- Services config: Retrieved for each component by the deployed `ConfigMaps` and `Secrets`
+As of this version, openstack-must-gather uses a standard Kubernetes directory
+structure compliant with the [official OpenShift inspect
+gathering](https://github.com/openshift/enhancements/blob/master/enhancements/oc/inspect.md)
+enhancement. This structure is compatible with analysis tools like [OMC
+(OpenShift Must-Gather Client)](https://github.com/gmeghnag/omc) and follows
+OpenShift best practices for resource organization.
+
+### Legacy Collection Structure (Deprecated)
+
+To use the legacy OpenStack-specific directory structure, set `OMC=false`:
+
+```sh
+oc adm must-gather --image=quay.io/openstack-k8s-operators/openstack-must-gather \
+  -- OMC=false gather
+```
+
+**Note**: The legacy OpenStack-specific directory structure is deprecated and
+may be removed in future versions.
+
+### Customize gathered data
+
+The `openstack-must-gather` will get a dump of:
+
+- Service logs: Retrieved by the output of the pods (and operators) associated
+  to the deployed services
+- Services config: Retrieved for each component by the deployed `ConfigMaps`
+  and `Secrets`
 - Status of the services deployed in the OpenStack control plane
 - Deployed CRs and CRDs
 - `CSVs`, `pkgmanifests`, `subscriptions`, `installplans`, `operatorgroup`
 - `Pods`, `Deployments`, `Statefulsets`, `ReplicaSets`, `Service`, `Routes`, `ConfigMaps`, (part of / relevant) `Secrets`
 - Network related info (`Metallb` info, `IPAddressPool`, `L2Advertisements`, `NetConfig`, `IPSet`)
 - SOS reports for OpenShift nodes that are running OpenStack service pods.
-
-### Customize gathered data
 
 Some openstack-must-gather collectors can be configured via environmental
 variables to behave differently. For example SOS gathering can be disabled
@@ -77,6 +99,67 @@ This is the list of available environmental variables:
   deleted after the archive is created. Defaulted to 0.
 - `SUPPORT_TOOLS`: The OpenShift support-tools container image. It allows to
   override the image location for disconnected environments.
+- `OMC`: Controls the directory structure format. Set to `false` to use the legacy
+  OpenStack-specific directory structure. When `true` (default), the collection uses
+  `oc adm inspect` to create a standard Kubernetes directory structure compatible with 
+  the [omc tool](https://github.com/gmeghnag/omc) and compliant with the official 
+  OpenShift inspect gathering enhancement.
+
+
+### Standard Collection
+
+```bash
+oc adm must-gather \
+  --image=quay.io/openstack-k8s-operators/openstack-must-gather \
+  --dest-dir=/home/stack/must-gather \
+  -- SOS= SOS_SERVICES= OPENSTACK_DATABASES=ALL gather
+```
+
+### Legacy Collection Structure
+
+```bash
+oc adm must-gather \
+  --image=quay.io/openstack-k8s-operators/openstack-must-gather \
+  --dest-dir=/home/stack/must-gather-legacy \
+  -- SOS= SOS_SERVICES= OMC=false OPENSTACK_DATABASES=ALL gather
+```
+
+### Analyzing with OMC
+
+After collection, you can use OMC commands to navigate and analyze resources:
+```bash
+# Install OMC tool
+go install github.com/gmeghnag/omc@latest
+
+# Navigate OpenStack resources
+omc get glance
+omc get oscp
+omc get nova
+omc get neutron
+
+# Explore network resources
+omc get net-attach-def
+omc get nncp
+omc get ipaddresspools
+
+# Examine nodes and infrastructure
+omc get nodes
+omc get pvc
+omc describe namespace openstack
+```
+
+The standard collection provides access to comprehensive OpenStack resource
+collection, including services, network resources, secrets, and monitoring
+components, organized in a standard Kubernetes structure for optimal tool
+compatibility.
+
+**OpenStack-Specific Resource Processing**: While following the standard
+inspect gathering structure, openstack-must-gather maintains dedicated
+`secrets` and `configmaps` directories within the control plane namespace.
+These directories contain processed OpenStack service configurations, scripts,
+and masked sensitive data that are essential for OpenStack troubleshooting.
+This approach ensures compatibility with both standard Kubernetes analysis
+tools and specialized OpenStack debugging workflows.
 
 ### Inspect gathered data
 
@@ -105,48 +188,39 @@ gathered resources is generated, and in general it contains:
    check the relevant resources generated within the OpenStack cluster (`endpoint
    list`, `networks`, `subnets`, `registered services`, etc)
 
-A generic output of the `openstack-must-gather` execution looks like the
-following:
+A generic output of the `openstack-must-gather` execution using the standard
+structure looks like the following:
 
 
 ```bash
-+-----------------------------------+
-|     .                             |                                    +-----------------------------+
-|     ├── apiservices               |                                    |    ctlplane/neutron/        |
-|     ├── crd                       |                                    |    ├── agent_list           |
-|     ├── csv                       |       (control plane resources)    |    ├── extension_list       |
-|     ├── ctlplane                  |------------------------------------|    ├── floating_ip_list     |
-|     │   ├── neutron               |                                    |    ├── network_list         |
-|     │   ├── nova                  |-----------------                   |    ├── port_list            |
-|     │   └── placement             |                |                   |    ├── router_list          |
-|     ├── dbs                       |   +---------------------------+    |    ├── security_group_list  |
-|     ├── namespaces                |   |   namespaces/openstack/   |    |    └── subnet_list          |
-|     │   ├── cert-manager          |   |    ├── all_resources.log  |    +-----------------------------+
-|     │   ├── openshift-machine-api |   |    ├── buildconfig        |-----------------------------------
-|     │   ├── openshift-nmstate     |   |    ├── configmaps         |                                  |
-|     │   ├── openstack             |   |    ├── cronjobs           |   +--------------------------------------------------------------------+
-|     │   └── openstack-operators   |   |    ├── crs                |   |    namespaces/openstack/secrets/glance/                            |
-|     ├── network                   |   |    ├── daemonset          |   |    ├── cert-glance-default-public-route.yaml                       |
-|     │   ├── ipaddresspools        |   |    ├── deployments        |   |    ├── glance-config-data.yaml                                     |
-|     │   ├── nnce                  |   |    ├── events.log         |   |    ├── glance-config-data.yaml-00-config.conf                      |
-|     │   └── nncp                  |   |    ├── installplans       |   |    ├── glance-default-single-config-data.yaml                      |
-|     ├── nodes                     |   |    ├── jobs               |   |    ├── glance-default-single-config-data.yaml-00-config.conf       |
-|     ├── sos-reports               |   |    ├── nad.log            |   |    ├── glance-default-single-config-data.yaml-10-glance-httpd.conf |
-|     │   ├── _all_nodes            |   |    ├── pods               |   |    ├── glance-default-single-config-data.yaml-httpd.conf           |
-|     │   ├── barbican              |   |    ├── pvc.log            |   |    ├── glance-default-single-config-data.yaml-ssl.conf             |
-|     │   ├── ceilometer            |   |    ├── replicaset         |   |    └── glance-scripts.yaml                                         |
-|     │   ├── glance                |   |    ├── routes             |   +--------------------------------------------------------------------+
-|     │   ├── keystone              |   |    ├── secrets            |                                  |
-|     │   ├── neutron               |   |    ├── services           |   +--------------------------------------------------------------------+
-|     │   ├── nova                  |   |    ├── statefulsets       |   | Note: if DO_NOT_MASK is passed in CI, secrets are dumped without   |
-|     │   ├── ovn                   |   |    └── subscriptions      |   |       hiding any sensitive information.                            |
-|     │   ├── ovs                   |   +---------------------------+   +--------------------------------------------------------------------+
-|     │   ├── placement             |
-|     │   └── swift                 |
-|     └── webhooks                  |
-|         ├── mutating              |
-|         └── validating            |
-+-----------------------------------+
++------------------------------------------+      (control plane resources)
+|     .                                    |   +-----------------------------+
+|     ├── cluster-scoped-resources         |   |    ctlplane/neutron/        |
+|     │   ├── admissionregistration.k8s.io |   |    ├── agent_list           |
+|     │   ├── apiextensions.k8s.io         |   |    ├── extension_list       |
+|     │   ├── apiregistration.k8s.io       |   |    ├── floating_ip_list     |
+|     │   └── core                         |---|    ├── network_list         |
+|     ├── ctlplane                         |   |    ├── port_list            |
+|     │   ├── cinder                       |   |    ├── router_list          |
+|     │   ├── glance                       |   |    ├── security_group_list  |
+|     │   ├── neutron                      |   |    └── subnet_list          |
+|     │   ├── nova                         |   +-----------------------------+
+|     │   ├── ovn                          |
+|     │   ├── placement                    |
+|     │   └── rabbitmq                     |
+|     ├── dbs                              |
+|     │   └── openstack                    |
+|     └── namespaces                       |
+|         ├── cert-manager                 |
+|         ├── metallb-system               |
+|         ├── openshift-frr-k8s            |
+|         ├── openshift-machine-api        |
+|         ├── openshift-monitoring         |
+|         ├── openshift-multus             |
+|         ├── openshift-operators          |
+|         ├── openstack                    |
+|         └── openstack-operators          |
++------------------------------------------+
 ```
 
 In a troubleshooting session, however, it's critical to check and analyze not
@@ -160,31 +234,45 @@ particular the `openstack-must-gather` tool is able to retrieve:
 1. `Events` recorded for the current namespace
 2. `Network Attachment Definitions`
 3. `PVCs` attached to the deployed Pods
-4. A picture of the namespaces in terms of deployed resources (`all_resources.log`)
 
 ```bash
-+---------------------------+
-| namespaces/openstack/     | ------------------------------------
-|    ├── buildconfig        |                                    |
-|    ├── cronjobs           |          +--------------------------------------------------------+
-|    ├── crs                |          |   namespaces/openstack/crs/                            |
-|    ├── daemonset          |          |   ├── barbicanapis.barbican.openstack.org              |
-|    ├── deployments        |          |   ├── barbicankeystonelisteners.barbican.openstack.org |
-|    ├── events.log         |          |   ├── barbicans.barbican.openstack.org                 |
-|    ├── installplans       |          |   ├── barbicanworkers.barbican.openstack.org           |
-|    ├── jobs               |          |   ...                                                  |
-|    ├── nad.log            |          |   ...                                                  |
-|    ├── pods               |          |   ├── glanceapis.glance.openstack.org                  |
-|    ├── all_resources.log  |          |          └── glance-default-single.yaml                |
-|    ├── configmaps         |          |   ├── glances.glance.openstack.org                     |
-|    ├── pvc.log            |          |          └── glance.yaml                               |
-|    ├── replicaset         |          |   ├── keystoneapis.keystone.openstack.org              |
-|    ├── routes             |          |   ├── keystoneendpoints.keystone.openstack.org         |
-|    ├── secrets            |          |   ├── keystoneservices.keystone.openstack.org          |
-|    ├── services           |          |   ...                                                  |
-|    ├── statefulsets       |          |   ├── telemetries.telemetry.openstack.org              |
-|    └── subscriptions      |          |   └── transporturls.rabbitmq.openstack.org             |
-+---------------------------+          +--------------------------------------------------------+
++----------------------------------+
+| namespaces/openstack/            |
+|    ├── apps                      |
+|    ├── apps.openshift.io         |
+|    ├── autoscaling               |
+|    ├── barbican.openstack.org    |
+|    ├── batch                     |
+|    ├── build.openshift.io        |
+|    ├── cinder.openstack.org      |
+|    ├── client.openstack.org      |
+|    ├── configmaps                |
+|    ├── core                      |
+|    ├── core.openstack.org        |   (openstack config files)
+|    ├── discovery.k8s.io          |---------------------------------+
+|    ├── glance.openstack.org      |                                 |
+|    ├── image.openshift.io        |  +--------------------------------------------------------------------+
+|    ├── k8s.ovn.org               |  |    namespaces/openstack/secrets/glance/                            |
+|    ├── keystone.openstack.org    |  |    ├── cert-glance-default-public-route.yaml                       |
+|    ├── mariadb.openstack.org     |  |    ├── glance-config-data.yaml                                     |
+|    ├── memcached.openstack.org   |  |    ├── glance-config-data.yaml-00-config.conf                      |
+|    ├── monitoring.coreos.com     |  |    ├── glance-default-single-config-data.yaml                      |
+|    ├── networking.k8s.io         |  |    ├── glance-default-single-config-data.yaml-00-config.conf       |
+|    ├── network.openstack.org     |  |    ├── glance-default-single-config-data.yaml-10-glance-httpd.conf |
+|    ├── neutron.openstack.org     |  |    ├── glance-default-single-config-data.yaml-httpd.conf           |
+|    ├── nova.openstack.org        |  |    ├── glance-default-single-config-data.yaml-ssl.conf             |
+|    ├── operators.coreos.com      |  |    └── glance-scripts.yaml                                         |
+|    ├── ovn.openstack.org         |  +--------------------------------------------------------------------+
+|    ├── placement.openstack.org   |                                 |
+|    ├── pods                      |  +--------------------------------------------------------------------+
+|    ├── policy                    |  | Note: if DO_NOT_MASK is passed, secrets are dumped without         |
+|    ├── rabbitmq.com              |  |       hiding any sensitive information.                            |
+|    ├── rabbitmq.openstack.org    |  +--------------------------------------------------------------------+
+|    ├── route.openshift.io        |
+|    ├── secrets                   |
+|    ├── swift.openstack.org       |
+|    └── telemetry.openstack.org   |
++----------------------------------+
 ```
 
 As depicted in the schema above, the same pattern applies to the Pod resources.
@@ -193,33 +281,42 @@ description and the associated logs (including `-previous` in case the Pod is
 in a `CrashLookBackoff` status).
 
 ```bash
-+---------------------------+
-| namespaces/openstack/     | ------------------------------------
-|    ├── buildconfig        |                                    |
-|    ├── cronjobs           |          +-----------------------------------------------------------+
-|    ├── crs                |          |   namespaces/openstack/pods/glance-dbpurge-28500481-f4jk9 |
-|    ├── daemonset          |          |   ├── glance-dbpurge-28500481-f4jk9-describe              |
-|    ├── deployments        |          |   └── logs                                                |
-|    ├── events.log         |          |       └── glance-dbpurge.log                              |
-|    ├── installplans       |          |   namespaces/openstack/pods/glance-default-single-0       |
-|    ├── jobs               |          |   ├── glance-default-single-0-describe                    |
-|    ├── nad.log            |          |   └── logs                                                |
-|    ├── pods               |          |       ├── glance-api.log                                  |
-|    ├── all_resources.log  |          |       ├── glance-httpd.log                                |
-|    ├── configmaps         |          |       └── glance-log.log                                  |
-|    ├── pvc.log            |          |   namespaces/openstack/pods/glance-default-single-1       |
-|    ├── replicaset         |          |   ├── glance-default-single-1-describe                    |
-|    ├── routes             |          |   └── logs                                                |
-|    ├── secrets            |          |       ├── glance-api.log                                  |
-|    ├── services           |          |       ├── glance-httpd.log                                |
-|    ├── statefulsets       |          |       └── glance-log.log                                  |
-|    └── subscriptions      |          |   namespaces/openstack/pods/glance-default-single-2       |
-+---------------------------+          |   ├── glance-default-single-2-describe                    |
-                                       |   └── logs                                                |
-                                       |       ├── glance-api.log                                  |
-                                       |       ├── glance-httpd.log                                |
-                                       |       └── glance-log.log                                  |
-                                       +-----------------------------------------------------------+
++-----------------------------------+  (example pod view)
+| namespaces/openstack/             |----------------------+
+|    ├── apps                       |                      |
+|    ├── apps.openshift.io          |  +-----------------------------------------------------+
+|    ├── autoscaling                |  |   namespaces/openstack/pods/glance-dbpurge-28500481 |
+|    ├── barbican.openstack.org     |  |    ├── glance-dbpurge-28500481.yaml                 |
+|    ├── batch                      |  |    └── glance-dbpurge/logs                          |
+|    ├── build.openshift.io         |  |        └── glance-dbpurge.log                       |
+|    ├── cinder.openstack.org       |  |   namespaces/openstack/pods/glance-default-single-0 |
+|    ├── client.openstack.org       |  |   ├── glance-default-single-0.yaml                  |
+|    ├── configmaps                 |  |   └── glance-httpd/glance-httpd/logs                |
+|    ├── core.openstack.org         |  |       ├── current.log                               |
+|    ├── discovery.k8s.io           |  |       └── previous.log                              |
+|    ├── glance.openstack.org       |  +-----------------------------------------------------+
+|    ├── image.openshift.io         |
+|    ├── k8s.ovn.org                |
+|    ├── keystone.openstack.org     |
+|    ├── mariadb.openstack.org      |
+|    ├── memcached.openstack.org    |
+|    ├── monitoring.coreos.com      |
+|    ├── networking.k8s.io          |
+|    ├── network.openstack.org      |
+|    ├── neutron.openstack.org      |
+|    ├── nova.openstack.org         |
+|    ├── operators.coreos.com       |
+|    ├── ovn.openstack.org          |
+|    ├── placement.openstack.org    |
+|    ├── pods                       |
+|    ├── policy                     |
+|    ├── rabbitmq.com               |
+|    ├── rabbitmq.openstack.org     |
+|    ├── route.openshift.io         |
+|    ├── secrets                    |
+|    ├── swift.openstack.org        |
+|    └── telemetry.openstack.org    |
++-----------------------------------+
 ```
 
 ## Development

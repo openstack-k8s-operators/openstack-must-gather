@@ -10,9 +10,8 @@ fi
 apiservices=()
 
 # explicitly adding rabbitmq in the grep because we rely on the rabbitmq-cluster-operator
-for i in $(/usr/bin/oc get apiservices --all-namespaces | grep -E "(openstack|rabbitmq)\.(org|com)" | awk '{ print $1 }')
-do
-  apiservices+=("$i")
+for i in $(/usr/bin/oc get apiservices --all-namespaces | awk '/(openstack|rabbitmq)\.(org|com)/ { print $1 }'); do
+    apiservices+=("$i")
 done
 
 for resource in "${apiservices[@]}"; do

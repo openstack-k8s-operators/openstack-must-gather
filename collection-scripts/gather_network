@@ -10,28 +10,28 @@ fi
 # get nncp
 mkdir -p "${BASE_COLLECTION_PATH}/network/nncp"
 for iface in $(oc get nncp -o custom-columns=".NAME:metadata.name" --no-headers); do
-    run_bg /usr/bin/oc get nncp "$iface" -o yaml '>' "${BASE_COLLECTION_PATH}/network/nncp/$iface.log";
+    run_bg /usr/bin/oc get nncp "$iface" -o yaml '>' "${BASE_COLLECTION_PATH}/network/nncp/$iface.yaml";
 done
 
 # get nnce
 mkdir -p "${BASE_COLLECTION_PATH}/network/nnce"
 for iface in $(oc get nnce -o custom-columns=".NAME:metadata.name" --no-headers); do
-    run_bg /usr/bin/oc get nnce "$iface" -o yaml '>' "${BASE_COLLECTION_PATH}/network/nnce/$iface.log";
+    run_bg /usr/bin/oc get nnce "$iface" -o yaml '>' "${BASE_COLLECTION_PATH}/network/nnce/$iface.yaml";
 done
 
 # get nns
 mkdir -p "${BASE_COLLECTION_PATH}/network/nns"
 for iface in $(oc get nns -o custom-columns=".NAME:metadata.name" --no-headers); do
-    run_bg /usr/bin/oc get nns "$iface" -o yaml '>' "${BASE_COLLECTION_PATH}/network/nns/$iface.log";
+    run_bg /usr/bin/oc get nns "$iface" -o yaml '>' "${BASE_COLLECTION_PATH}/network/nns/$iface.yaml";
 done
 
 # get ipaddresspools
 mkdir -p "${BASE_COLLECTION_PATH}/network/ipaddresspools"
 for ipadd in $(oc -n "${METALLB_NAMESPACE}" get ipaddresspools -o custom-columns=".NAME:metadata.name" --no-headers); do
-    run_bg /usr/bin/oc -n "${METALLB_NAMESPACE}" get ipaddresspools "$ipadd" -o yaml '>' "${BASE_COLLECTION_PATH}/network/ipaddresspools/$ipadd.log";
+    run_bg /usr/bin/oc -n "${METALLB_NAMESPACE}" get ipaddresspools "$ipadd" -o yaml '>' "${BASE_COLLECTION_PATH}/network/ipaddresspools/$ipadd.yaml";
 done
 
 # get l2advertisement
-run_bg /usr/bin/oc -n "${METALLB_NAMESPACE}" get l2advertisement -o yaml '>>' "${BASE_COLLECTION_PATH}/network/l2advertisement.log"
+run_bg /usr/bin/oc -n "${METALLB_NAMESPACE}" get l2advertisement -o yaml '>>' "${BASE_COLLECTION_PATH}/network/l2advertisement.yaml"
 
 [[ $CALLED -eq 1 ]] && wait_bg

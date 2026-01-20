@@ -16,6 +16,7 @@ COPY collection-scripts/* /usr/bin/
 
 # Copy the python script used to mask sensitive data
 COPY pyscripts/mask.py /usr/bin/
+COPY pyscripts/cmaps.py /usr/bin/
 
 # Set openstack-must-gather image version based on
 # the current git info

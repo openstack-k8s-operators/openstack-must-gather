@@ -3,6 +3,9 @@
 DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 source "${DIR_NAME}/common.sh"
 
+# Load OMC compatibility layer
+source "${DIR_NAME}/omc.sh"
+
 # Trigger Guru Meditation Reports to have them in SOS report pod logs
 source "${DIR_NAME}/gather_trigger_gmr"
 
@@ -11,59 +14,56 @@ source "${DIR_NAME}/gather_trigger_gmr"
 source "${DIR_NAME}/gather_sos"
 source "${DIR_NAME}/gather_edpm_sos"
 
-# get nodes information
-source "${DIR_NAME}/gather_nodes"
-
-# get apiservices
-source "${DIR_NAME}/gather_apiservices"
-
-# get CRDs
-source "${DIR_NAME}/gather_crds"
-
-# get CRs
-source "${DIR_NAME}/gather_crs"
-
-# get webhooks
-source "${DIR_NAME}/gather_webhooks"
-
 # expand the existing NAMESPACES including some relevant for OpenStack CI
 # passed as input: if they exist we can gather the associated resources and
 # logs
 expand_ns
 
-# Import functions used in the for loop
-source "${DIR_NAME}/gather_services_cm"
-source "${DIR_NAME}/gather_secrets"
-source "${DIR_NAME}/gather_sub"
-source "${DIR_NAME}/gather_ctlplane_resources"
-
-for NS in "${DEFAULT_NAMESPACES[@]}"; do
-    # get Services Config (CM)
-    gather_services_cm "$NS"
-    # get Services Secrets
-    gather_secrets "$NS"
-    # get subscriptions / installplans / packagemanifests / CSVs
-    gather_sub "$NS"
-    # get routes, services, jobs, deployments
-    # daemonsets, statefulsets, replicasets,
-    # pods (describe)
-    gather_ctlplane_resources "$NS"
-done
-
-# get network related resources (nncp, ipaddresspool, l2advertisement)
-source "${DIR_NAME}/gather_network"
-
-# get SVC status (inspect ctlplane)
-source "${DIR_NAME}/gather_services_status"
+# Skip namespaced resource collection if OMC mode is enabled (oc adm inspect handles this)
+if [[ "${OMC}" != "true" ]]; then
+    # Gather openshift resources
+    source "${DIR_NAME}/gather_nodes"
+    source "${DIR_NAME}/gather_apiservices"
+    source "${DIR_NAME}/gather_webhooks"
+    source "${DIR_NAME}/gather_crds"
+    source "${DIR_NAME}/gather_crs"
+    # Import functions used in the for loop
+    source "${DIR_NAME}/gather_services_cm"
+    source "${DIR_NAME}/gather_secrets"
+    source "${DIR_NAME}/gather_sub"
+    source "${DIR_NAME}/gather_ctlplane_resources"
+    # get network related resources (nncp, ipaddresspool, l2advertisement)
+    source "${DIR_NAME}/gather_network"
+    # Gather namespaced resources
+    for NS in "${DEFAULT_NAMESPACES[@]}"; do
+        # get Services Config (CM)
+        gather_services_cm "$NS"
+        # get Services Secrets
+        gather_secrets "$NS"
+        # get subscriptions / installplans / packagemanifests / CSVs
+        gather_sub "$NS"
+        # get routes, services, jobs, deployments, daemonsets, statefulsets,
+        # replicasets, pods (describe and logs)
+        gather_ctlplane_resources "$NS"
+    done
+else
+    echo "OMC mode: Collecting OLM resources (subscriptions, CSVs, etc.) in OMC format"
+    # Collect resources using oc adm inspect for OMC compatibility
+    collect_omc_inspect
+    collect_omc_post
+fi
 
 # dump the openstack database
 source "${DIR_NAME}/gather_db"
+
+# get SVC status (inspect ctlplane)
+source "${DIR_NAME}/gather_services_status"
 
 # Wait for background tasks to complete
 wait_bg
 
 # Create rotated log symlinks after everything else has finished
-rotated_logs_symlinks
+[[ "${OMC}" != "true" ]] && rotated_logs_symlinks
 
 # Store version of the must-gather tool first
 source "${DIR_NAME}/gather_version"

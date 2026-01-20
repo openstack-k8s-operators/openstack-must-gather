@@ -15,7 +15,7 @@ get_cm() {
     local NS="$1"
     local service="$2"
     mkdir -p "$NAMESPACE_PATH"/"$NS"/configmaps
-    CMS=$(/usr/bin/oc -n "$NS" get cm | grep -i "$service" | awk '{print $1}')
+    CMS=$(/usr/bin/oc -n "$NS" get cm | awk -v s="$service" 'tolower($0) ~ tolower(s) {print $1}')
     # shellcheck disable=SC2068
     for cm in ${CMS[@]}; do
         echo "Extracting ConfigMap: $cm"
