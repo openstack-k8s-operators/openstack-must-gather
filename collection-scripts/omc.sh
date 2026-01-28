@@ -108,6 +108,8 @@ function collect_omc_post {
             mkdir -p "$NAMESPACE_PATH/${ns}/configmaps"
             # Split ConfigMapList and apply masking if required
             /usr/bin/cmaps.py "${NAMESPACE_PATH}/${ns}/$CMS" "${NAMESPACE_PATH}/${ns}/configmaps" "$MASK_OPT"
+            # Provide a better view of the namespace resources
+            run_bg /usr/bin/oc -n "${ns}" get all '>' "${NAMESPACE_PATH}/${ns}/all_resources.log"
         fi
     done
 }
