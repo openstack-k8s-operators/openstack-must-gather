@@ -2,9 +2,10 @@
 
 aliases:
   ci-approvers:
-  - lewisdenny
-  - frenzyfriday
-  - viroel
+  - danpawlik
+  - amartyasinha
+  - brjackma
+  - bshewale
   openstack-approvers:
     - abays
     - dprince
