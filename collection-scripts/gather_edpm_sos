@@ -99,8 +99,14 @@ gather_edpm_sos () {
     # if were decompressing the sos report, remove the
     # original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
-        tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf ${SOS_PATH_NODES}/sosreport-$node.tar.xz
-        rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+        # Use -C instead of --one-top-level to avoid "Invalid cross-device
+        # link" errors caused by --one-top-level combined with
+        # --strip-components in GNU tar 1.34
+        if tar -C "${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf ${SOS_PATH_NODES}/sosreport-$node.tar.xz; then
+            rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
+        else
+            echo "Failed to extract sosreport for ${node}, keeping original archive"
+        fi
     fi
 
     # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
