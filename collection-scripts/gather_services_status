@@ -275,6 +275,24 @@ get_ovn_status() {
     else
         echo "Pod ${sb_pod} not found in namespace ${OSP_NS}, skipping OVN SB database collection"
     fi
+
+    # Collect OVN cluster status
+    mkdir -p "${OVN_PATH}/cluster-status/nb"
+    mkdir -p "${OVN_PATH}/cluster-status/sb"
+
+    echo "Collecting OVN database cluster status..."
+
+    # Collect cluster status from all OVN NB pods
+    for pod in $(/usr/bin/oc -n "${OSP_NS}" get pods -l service=ovsdbserver-nb -o custom-columns=":metadata.name" --no-headers 2>/dev/null); do
+        echo "Collecting cluster status from NB pod: $pod"
+        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t /tmp/ovnnb_db.ctl cluster/status OVN_Northbound > "${OVN_PATH}/cluster-status/nb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from NB pod: $pod"
+    done
+
+    # Collect cluster status from all OVN SB pods
+    for pod in $(/usr/bin/oc -n "${OSP_NS}" get pods -l service=ovsdbserver-sb -o custom-columns=":metadata.name" --no-headers 2>/dev/null); do
+        echo "Collecting cluster status from SB pod: $pod"
+        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t /tmp/ovnsb_db.ctl cluster/status OVN_Southbound > "${OVN_PATH}/cluster-status/sb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from SB pod: $pod"
+    done
 }
 
 # Cloudkitty service gathering - module list
