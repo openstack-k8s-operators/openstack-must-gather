@@ -54,7 +54,7 @@ declare resources=(
 export resources
 
 # Global CRD matching function for consistent discovery across all scripts
-# Explictly adding rabbit because its CRD is named with a different domain.
+# Explicitly adding rabbit because its CRD is named with a different domain (rabbitmq-cluster-operator may be optional).
 # Also adding monitoring.rhobs, because telemetry uses observability-operator
 # to deploy a `MonitoringStack` for storing and scraping metrics.
 # Adding grafana.com, observability.openshift.io and logging.openshift.io
