@@ -119,8 +119,14 @@ gather_node_sos () {
     # if we are decompressing the sos report, remove the original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
         mkdir "${SOS_PATH_NODES}/sosreport-$node"
-        tar -i --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"
-        rm "${sos_file}"
+        # Use -C instead of --one-top-level to avoid "Invalid cross-device
+        # link" errors caused by --one-top-level combined with
+        # --strip-components in GNU tar 1.34
+        if tar -i -C "${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"; then
+            rm "${sos_file}"
+        else
+            echo "Failed to extract sosreport for ${node}, keeping original archive"
+        fi
         # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
         chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
     fi
