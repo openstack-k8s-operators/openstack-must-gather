@@ -285,13 +285,23 @@ get_ovn_status() {
     # Collect cluster status from all OVN NB pods
     for pod in $(/usr/bin/oc -n "${OSP_NS}" get pods -l service=ovsdbserver-nb -o custom-columns=":metadata.name" --no-headers 2>/dev/null); do
         echo "Collecting cluster status from NB pod: $pod"
-        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t /tmp/ovnnb_db.ctl cluster/status OVN_Northbound > "${OVN_PATH}/cluster-status/nb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from NB pod: $pod"
+        # Try /etc/ovn first, fallback to /tmp for backward compatibility
+        nb_ctl_path="/etc/ovn/ovnnb_db.ctl"
+        if ! /usr/bin/oc -n "${OSP_NS}" rsh "$pod" test -S "$nb_ctl_path" 2>/dev/null; then
+            nb_ctl_path="/tmp/ovnnb_db.ctl"
+        fi
+        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t "$nb_ctl_path" cluster/status OVN_Northbound > "${OVN_PATH}/cluster-status/nb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from NB pod: $pod"
     done
 
     # Collect cluster status from all OVN SB pods
     for pod in $(/usr/bin/oc -n "${OSP_NS}" get pods -l service=ovsdbserver-sb -o custom-columns=":metadata.name" --no-headers 2>/dev/null); do
         echo "Collecting cluster status from SB pod: $pod"
-        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t /tmp/ovnsb_db.ctl cluster/status OVN_Southbound > "${OVN_PATH}/cluster-status/sb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from SB pod: $pod"
+        # Try /etc/ovn first, fallback to /tmp for backward compatibility
+        sb_ctl_path="/etc/ovn/ovnsb_db.ctl"
+        if ! /usr/bin/oc -n "${OSP_NS}" rsh "$pod" test -S "$sb_ctl_path" 2>/dev/null; then
+            sb_ctl_path="/tmp/ovnsb_db.ctl"
+        fi
+        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t "$sb_ctl_path" cluster/status OVN_Southbound > "${OVN_PATH}/cluster-status/sb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from SB pod: $pod"
     done
 }
 
