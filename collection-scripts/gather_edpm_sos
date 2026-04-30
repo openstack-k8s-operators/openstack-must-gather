@@ -99,7 +99,7 @@ gather_edpm_sos () {
     # if were decompressing the sos report, remove the
     # original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
-        tar --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf ${SOS_PATH_NODES}/sosreport-$node.tar.xz
+        tar -C "${SOS_PATH_NODES}" --one-top-level="sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
         rm "${SOS_PATH_NODES}/sosreport-$node.tar.xz"
     fi
 
