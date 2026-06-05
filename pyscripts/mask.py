@@ -36,10 +36,10 @@ PROTECT_KEYS = [
     "ssl_client_key_password", "s3_store_secret_key",
     "vmware_server_password", "dns_passkey", "stack_domain_admin_password",
     "ldap_dns_password", "neutron_admin_password", "admin_token",
-    "ca_password" "hdfs_ssh_pw", "maprfs_ssh_pw", "powervm_mgr_passwd",
+    "ca_password", "hdfs_ssh_pw", "maprfs_ssh_pw", "powervm_mgr_passwd",
     "virtual_power_host_pass", "vnc_password", "s3_secret_key",
-    "ca_private_key_passphrase", "heartbeat_key", "DatabasePassword",
-    "server_certs_key_passphrase", "ssh-privatekey",
+    "s3_access_key", "ca_private_key_passphrase", "heartbeat_key",
+    "DatabasePassword", "server_certs_key_passphrase", "ssh-privatekey",
 ]
 
 CONNECTION_KEYS = ["rabbit", "database_connection",
