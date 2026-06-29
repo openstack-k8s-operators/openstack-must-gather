@@ -118,11 +118,13 @@ gather_node_sos () {
 
     # if we are decompressing the sos report, remove the original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
-        mkdir "${SOS_PATH_NODES}/sosreport-$node"
-        tar -i --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"
-        rm "${sos_file}"
-        # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
-        chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+        if tar -i -C "${SOS_PATH_NODES}" --one-top-level="sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"; then
+            rm "${sos_file}"
+            # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
+            chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+        else
+            echo "Failed to decompress SOS report for ${node}, keeping compressed archive"
+        fi
     fi
 
     sleep 1
