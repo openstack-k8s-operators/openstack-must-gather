@@ -1,0 +1,136 @@
+#!/bin/bash
+
+# Collect OADP (OpenShift API for Data Protection) and backup/restore
+# resources for troubleshooting OpenStack backup and restore operations.
+
+if [[ -z "$DIR_NAME" ]]; then
+    CALLED=1
+    DIR_NAME=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+    source "${DIR_NAME}/common.sh"
+fi
+
+BACKUP_RESTORE_PATH="${BASE_COLLECTION_PATH}/backup-restore"
+
+# OADP resources in the openshift-adp namespace
+function gather_oadp_resources {
+    if ! check_namespace "${OADP_NS}"; then
+        echo "OADP namespace ${OADP_NS} not found, skipping OADP resource collection"
+        return
+    fi
+
+    local oadp_resources=(
+        "backups.velero.io"
+        "restores.velero.io"
+        "datauploads.velero.io"
+        "datadownloads.velero.io"
+        "backupstoragelocations.velero.io"
+        "volumesnapshotlocations.velero.io"
+        "dataprotectionapplications.oadp.openshift.io"
+    )
+
+    echo "Gathering OADP resources from ${OADP_NS}"
+    for resource in "${oadp_resources[@]}"; do
+        if ! /usr/bin/oc -n "${OADP_NS}" get "${resource}" &>/dev/null; then
+            continue
+        fi
+        local short_name
+        short_name="${resource%%.*}"
+        local resource_path="${BACKUP_RESTORE_PATH}/oadp/${short_name}"
+        mkdir -p "${resource_path}"
+        for item in $(/usr/bin/oc -n "${OADP_NS}" get "${resource}" -o custom-columns=":metadata.name" --no-headers 2>/dev/null); do
+            run_bg /usr/bin/oc -n "${OADP_NS}" get "${resource}" "${item}" -o yaml '>' "${resource_path}/${item}.yaml"
+        done
+    done
+}
+
+# VolumeSnapshotClass (cluster-scoped)
+function gather_volume_snapshot_classes {
+    if ! /usr/bin/oc get volumesnapshotclasses.snapshot.storage.k8s.io &>/dev/null; then
+        return
+    fi
+
+    echo "Gathering VolumeSnapshotClasses"
+    local vsc_path="${BACKUP_RESTORE_PATH}/volumesnapshotclasses"
+    mkdir -p "${vsc_path}"
+    for vsc in $(/usr/bin/oc get volumesnapshotclasses.snapshot.storage.k8s.io -o custom-columns=":metadata.name" --no-headers 2>/dev/null); do
+        run_bg /usr/bin/oc get volumesnapshotclasses.snapshot.storage.k8s.io "${vsc}" -o yaml '>' "${vsc_path}/${vsc}.yaml"
+    done
+}
+
+# VolumeSnapshots from the openstack namespace
+function gather_volume_snapshots {
+    local NS="${1:-$OSP_NS}"
+    if ! check_namespace "${NS}"; then
+        return
+    fi
+    if ! /usr/bin/oc -n "${NS}" get volumesnapshots.snapshot.storage.k8s.io &>/dev/null; then
+        return
+    fi
+
+    echo "Gathering VolumeSnapshots from ${NS}"
+    local vs_path="${BACKUP_RESTORE_PATH}/volumesnapshots/${NS}"
+    mkdir -p "${vs_path}"
+    for vs in $(/usr/bin/oc -n "${NS}" get volumesnapshots.snapshot.storage.k8s.io -o custom-columns=":metadata.name" --no-headers 2>/dev/null); do
+        run_bg /usr/bin/oc -n "${NS}" get volumesnapshots.snapshot.storage.k8s.io "${vs}" -o yaml '>' "${vs_path}/${vs}.yaml"
+    done
+}
+
+# Backup/restore label verification: which resources are labeled for backup
+# and restore, grouped by restore order
+function gather_backup_restore_labels {
+    local NS="${1:-$OSP_NS}"
+    if ! check_namespace "${NS}"; then
+        return
+    fi
+
+    echo "Gathering backup/restore label summary from ${NS}"
+    local labels_path="${BACKUP_RESTORE_PATH}/labels/${NS}"
+    mkdir -p "${labels_path}"
+
+    run_bg /usr/bin/oc -n "${NS}" get all,secrets,configmaps,pvc,network-attachment-definitions \
+        -l backup.openstack.org/restore=true \
+        -o custom-columns='KIND:.kind,NAME:.metadata.name,RESTORE-ORDER:.metadata.labels.backup\.openstack\.org/restore-order,CATEGORY:.metadata.labels.backup\.openstack\.org/category' \
+        '>' "${labels_path}/restore-labeled-resources.log"
+
+    run_bg /usr/bin/oc -n "${NS}" get pvc \
+        -l backup.openstack.org/backup=true \
+        -o custom-columns='NAME:.metadata.name,RESTORE:.metadata.labels.backup\.openstack\.org/restore,RESTORE-ORDER:.metadata.labels.backup\.openstack\.org/restore-order' \
+        '>' "${labels_path}/backup-labeled-pvcs.log"
+
+    # CRDs with backup.openstack.org labels
+    run_bg /usr/bin/oc get crd -l backup.openstack.org/restore=true \
+        -o custom-columns='NAME:.metadata.name,RESTORE-ORDER:.metadata.labels.backup\.openstack\.org/restore-order,CATEGORY:.metadata.labels.backup\.openstack\.org/category' \
+        '>' "${labels_path}/backup-restore-crds.log"
+
+    # Resources with annotation overrides
+    run_bg /usr/bin/oc -n "${NS}" get secrets,configmaps,pvc \
+        -o json '|' jq -r \
+        '.items[] | select(.metadata.annotations["backup.openstack.org/restore"] // .metadata.annotations["backup.openstack.org/restore-order"]) | "\(.kind)/\(.metadata.name) restore=\(.metadata.annotations["backup.openstack.org/restore"] // "unset") order=\(.metadata.annotations["backup.openstack.org/restore-order"] // "unset")"' \
+        '>' "${labels_path}/annotation-overrides.log"
+}
+
+# OpenStackControlPlane deployment-stage annotation
+function gather_deployment_stage {
+    local NS="${1:-$OSP_NS}"
+    if ! check_namespace "${NS}"; then
+        return
+    fi
+
+    local stage_path="${BACKUP_RESTORE_PATH}/deployment-stage"
+    mkdir -p "${stage_path}"
+
+    run_bg /usr/bin/oc -n "${NS}" get openstackcontrolplane \
+        -o custom-columns='NAME:.metadata.name,DEPLOYMENT-STAGE:.metadata.annotations.core\.openstack\.org/deployment-stage,INFRA-READY:.status.conditions[?(@.type=="OpenStackControlPlaneInfrastructureReady")].status,READY:.status.conditions[?(@.type=="Ready")].status' \
+        '>' "${stage_path}/controlplane-stage.log"
+}
+
+echo "Gathering backup/restore resources"
+mkdir -p "${BACKUP_RESTORE_PATH}"
+
+gather_oadp_resources
+gather_volume_snapshot_classes
+gather_volume_snapshots "${OSP_NS}"
+gather_backup_restore_labels "${OSP_NS}"
+gather_deployment_stage "${OSP_NS}"
+
+[[ $CALLED -eq 1 ]] && wait_bg
