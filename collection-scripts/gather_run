@@ -53,6 +53,11 @@ else
     collect_omc_post
 fi
 
+# get backup/restore and OADP resources
+if [[ "${OMC}" != "true" ]]; then
+    source "${DIR_NAME}/gather_backup_restore"
+fi
+
 # dump the openstack database
 source "${DIR_NAME}/gather_db"
 

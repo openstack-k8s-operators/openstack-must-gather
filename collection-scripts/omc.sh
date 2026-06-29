@@ -98,6 +98,36 @@ function collect_webhooks_omc {
     fi
 }
 
+# Gather OADP and backup/restore resources
+function collect_backup_restore_omc {
+    [[ "${OMC}" != "true" ]] && return
+
+    if check_namespace "${OADP_NS}"; then
+        local oadp_resources=(
+            "backups.velero.io"
+            "restores.velero.io"
+            "datauploads.velero.io"
+            "datadownloads.velero.io"
+            "backupstoragelocations.velero.io"
+            "volumesnapshotlocations.velero.io"
+            "dataprotectionapplications.oadp.openshift.io"
+        )
+        for resource in "${oadp_resources[@]}"; do
+            if oc -n "${OADP_NS}" get "${resource}" &>/dev/null; then
+                run_bg oc adm inspect "${resource}" -n "${OADP_NS}" --dest-dir="${BASE_COLLECTION_PATH}"
+            fi
+        done
+    fi
+
+    if oc get volumesnapshotclasses.snapshot.storage.k8s.io &>/dev/null; then
+        run_bg oc adm inspect volumesnapshotclasses.snapshot.storage.k8s.io --dest-dir="${BASE_COLLECTION_PATH}"
+    fi
+
+    if oc -n "${OSP_NS}" get volumesnapshots.snapshot.storage.k8s.io &>/dev/null; then
+        run_bg oc adm inspect volumesnapshots.snapshot.storage.k8s.io -n "${OSP_NS}" --dest-dir="${BASE_COLLECTION_PATH}"
+    fi
+}
+
 # Post processing actions on gathered files
 function collect_omc_post {
     local CMS="core/configmaps.yaml"
@@ -156,6 +186,7 @@ function collect_omc_inspect {
     collect_crs_omc
     collect_webhooks_omc
     collect_network_resources_omc
+    collect_backup_restore_omc
 
     wait
 }
