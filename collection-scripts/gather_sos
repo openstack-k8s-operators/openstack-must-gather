@@ -80,7 +80,7 @@ gather_node_sos () {
           mkdir -p \"${TMPDIR}\" && \
           sudo podman rm --force toolbox-osp;  \
           sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json $SUPPORT_TOOLS && \
-          toolbox sos report --batch --all-logs $SOS_LIMIT --tmp-dir=\"${TMPDIR}\" && \
+          toolbox sos report --batch --all-logs $SOS_LIMIT --tmp-dir=\"/host${TMPDIR}\" && \
           if [[ \"\$(ls /var/log/pods/*/{*.log.*,*/*.log.*} 2>/dev/null)\" != '' ]]; then tar --ignore-failed-read --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods/*/{*.log.*,*/*.log.*} || true; fi"
 
     # shellcheck disable=SC2181
@@ -118,11 +118,13 @@ gather_node_sos () {
 
     # if we are decompressing the sos report, remove the original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
-        mkdir "${SOS_PATH_NODES}/sosreport-$node"
-        tar -i --one-top-level="${SOS_PATH_NODES}/sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"
-        rm "${sos_file}"
-        # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
-        chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+        if tar -i -C "${SOS_PATH_NODES}" --one-top-level="sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"; then
+            rm "${sos_file}"
+            # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
+            chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
+        else
+            echo "Failed to decompress SOS report for ${node}, keeping compressed archive"
+        fi
     fi
 
     sleep 1
