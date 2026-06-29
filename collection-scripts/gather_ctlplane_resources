@@ -69,11 +69,11 @@ function gather_ctlplane_resources {
       .metadata.name as $pod |
       (.status |
         (
-          if has("initContainerStatuses") then .initContainerStatuses[] else empty end |
+          if has("initContainerStatuses") then .initContainerStatuses[] | select(.state | has("running") or has("terminated")) else empty end |
           "\($pod) \(.name) \(has("lastState") and (.lastState | has("terminated"))) true"
         ),
         (
-          if has("containerStatuses") then .containerStatuses[] else empty end |
+          if has("containerStatuses") then .containerStatuses[] | select(.state | has("running") or has("terminated")) else empty end |
           "\($pod) \(.name) \(has("lastState") and (.lastState | has("terminated"))) false"
         )
       )
