@@ -55,7 +55,7 @@ MASK_STR = "**********"
 # general and connection regexes are used to match the pattern that should be
 # applied to both Protect keys and connection keys, which is the same thing
 # done in SoS reports
-gen_regex = r'(\w*(%s)\s*=\s*)(.*)' % "|".join(PROTECT_KEYS)
+gen_regex = r'(\w*(%s)\s*[=:]\s*)(.*)' % "|".join(PROTECT_KEYS)
 con_regex = r'((%s)\s*://)(\w*):(.*)(@(.*))' % "|".join(CONNECTION_KEYS)
 
 # In k8s secrets, it's possible to define sensitive information in the form
@@ -215,7 +215,7 @@ class SecretMask():
                 d[k] = ''
                 continue
             # try to match the keys we want to protect in the dict
-            if re.findall(key_regex, k):
+            if re.findall(key_regex, k, re.IGNORECASE):
                 # mask the value of the key entirely
                 masked = MASK_STR
             else:
@@ -318,7 +318,7 @@ class PlaintextMask():
         Handles both single-line and multi-line strings.
         """
         for pattern in regexes:
-            text = re.sub(pattern, r"\1{}".format(MASK_STR), text, flags=re.MULTILINE)
+            text = re.sub(pattern, r"\1{}".format(MASK_STR), text, flags=re.MULTILINE | re.IGNORECASE)
         return text
 
 
