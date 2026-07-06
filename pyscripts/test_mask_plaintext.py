@@ -226,6 +226,55 @@ class TestPlaintextMask(unittest.TestCase):
         self.assertNotIn('deeppass123', str(result))
         self.assertNotIn('adminpass', str(result))
 
+    def test_mixed_case_keys(self):
+        """
+        Test that keys with mixed case (e.g. Password, PASSWORD) are masked.
+        """
+        configmap = {
+            'apiVersion': 'v1',
+            'kind': 'ConfigMap',
+            'data': {
+                'config': 'Password=Secret1\nPASSWORD=Secret2\nadmin_Password=Secret3'
+            }
+        }
+        temp_file = self._create_temp_file(configmap)
+
+        PlaintextMask(temp_file).mask()
+
+        result = self._read_sample(temp_file)
+        config = result['data']['config']
+
+        self.assertNotIn('Secret1', config)
+        self.assertNotIn('Secret2', config)
+        self.assertNotIn('Secret3', config)
+        self.assertIn('Password=**********', config)
+        self.assertIn('PASSWORD=**********', config)
+        self.assertIn('admin_Password=**********', config)
+
+    def test_yaml_colon_keys(self):
+        """
+        Test that YAML-style colon-separated keys (e.g. password: value) are masked.
+        """
+        configmap = {
+            'apiVersion': 'v1',
+            'kind': 'ConfigMap',
+            'data': {
+                'config': 'password: mysecret\nusername: admin\nconnection: mysql://u:p@host/db'
+            }
+        }
+        temp_file = self._create_temp_file(configmap)
+
+        PlaintextMask(temp_file).mask()
+
+        result = self._read_sample(temp_file)
+        config = result['data']['config']
+
+        self.assertNotIn('mysecret', config)
+        self.assertNotIn('admin', config)
+        self.assertIn('password: **********', config)
+        self.assertIn('username: **********', config)
+        self.assertIn('connection: **********', config)
+
     def test_sample_files(self):
         """
         Test masking on sample files in tests/samples_plaintext directory
