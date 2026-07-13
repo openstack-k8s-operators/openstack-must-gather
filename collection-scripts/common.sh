@@ -16,6 +16,20 @@ export SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
 export SOS_PATH_NODES="${SOS_PATH}/_all_nodes"
 export METALLB_NAMESPACE=${METALLB_NAMESPACE:-"metallb-system"}
 export RABBITMQ_SELECTOR="app.kubernetes.io/component=rabbitmq"
+# Timeouts (seconds) to prevent commands from hanging indefinitely
+export CMD_TIMEOUT=${CMD_TIMEOUT:-120}
+export SOS_CMD_TIMEOUT=${SOS_CMD_TIMEOUT:-600}
+
+function run_with_timeout {
+    local tout="$1"
+    shift
+    timeout "$tout" "$@"
+    local rc=$?
+    if [[ $rc -eq 124 ]]; then
+        echo "TIMEOUT after ${tout}s: $*" >&2
+    fi
+    return $rc
+}
 export OADP_NS="${OADP_NS-openshift-adp}"
 declare -a DEFAULT_NAMESPACES=(
     "${OSP_NS}"

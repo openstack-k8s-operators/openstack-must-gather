@@ -8,7 +8,7 @@ if [[ -z "$DIR_NAME" ]]; then
 fi
 
 # shellcheck disable=SC2139  # We want it expanded when defined
-alias os="/usr/bin/oc -n ${OSP_NS} rsh openstackclient openstack "
+alias os="run_with_timeout ${CMD_TIMEOUT} /usr/bin/oc -n ${OSP_NS} rsh openstackclient openstack "
 
 # For each service passed an input, if the associated entry exists,
 # we can call the related function that processes specific service
@@ -90,12 +90,12 @@ get_rabbitmq_status() {
     mkdir -p "$RABBIT_PATH"
     for inst in $rabbit_instances; do
         mkdir -p "$RABBIT_PATH/$inst"
-        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl status '>' "$RABBIT_PATH"/"$inst"/status
-        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl cluster_status '>' "$RABBIT_PATH"/"$inst"/cluster_status
-        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_queues '>' "$RABBIT_PATH"/"$inst"/list_queues
-        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_connections '>' "$RABBIT_PATH"/"$inst"/list_connections
-        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_policies '>' "$RABBIT_PATH"/"$inst"/list_policies
-        run_bg oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_unresponsive_queues '>' "$RABBIT_PATH"/"$inst"/list_unresponsive_queues
+        run_bg run_with_timeout "$CMD_TIMEOUT" oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl status '>' "$RABBIT_PATH"/"$inst"/status
+        run_bg run_with_timeout "$CMD_TIMEOUT" oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl cluster_status '>' "$RABBIT_PATH"/"$inst"/cluster_status
+        run_bg run_with_timeout "$CMD_TIMEOUT" oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_queues '>' "$RABBIT_PATH"/"$inst"/list_queues
+        run_bg run_with_timeout "$CMD_TIMEOUT" oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_connections '>' "$RABBIT_PATH"/"$inst"/list_connections
+        run_bg run_with_timeout "$CMD_TIMEOUT" oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_policies '>' "$RABBIT_PATH"/"$inst"/list_policies
+        run_bg run_with_timeout "$CMD_TIMEOUT" oc -n "${OSP_NS}" rsh "$inst" rabbitmqctl list_unresponsive_queues '>' "$RABBIT_PATH"/"$inst"/list_unresponsive_queues
     done
 }
 
@@ -148,8 +148,8 @@ get_nova_status() {
     mkdir -p "$NOVA_PATH"
     run_bg ${BASH_ALIASES[os]} compute service list '>' "$NOVA_PATH"/service_list
     run_bg ${BASH_ALIASES[os]} hypervisor list '>' "$NOVA_PATH"/hypervisor_list
-    run_bg /usr/bin/oc -n ${OSP_NS} exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_cells '>' "$NOVA_PATH"/cell_list
-    run_bg /usr/bin/oc -n ${OSP_NS} exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_hosts '>' "$NOVA_PATH"/host_list
+    run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n ${OSP_NS} exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_cells '>' "$NOVA_PATH"/cell_list
+    run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n ${OSP_NS} exec -t nova-cell0-conductor-0 -- nova-manage cell_v2 list_hosts '>' "$NOVA_PATH"/host_list
     run_bg ${BASH_ALIASES[os]} aggregate list --long '>' "$NOVA_PATH"/aggregate_list
 }
 
@@ -254,7 +254,7 @@ get_designate_status() {
 
     WORKER=$(oc get pods -l component=designate-worker -o custom-columns=NAME:.metadata.name --no-headers | head -n 1)
     # We can add the --all_pools flag when it is available in openstackclient
-    run_bg /usr/bin/oc -n ${OSP_NS} exec -t ${WORKER} -- designate-manage pool show_config '>' "$DESIGNATE_PATH"/pool_list
+    run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n ${OSP_NS} exec -t ${WORKER} -- designate-manage pool show_config '>' "$DESIGNATE_PATH"/pool_list
 }
 
 # OVN service gathering - database files and status info
@@ -266,7 +266,7 @@ get_ovn_status() {
     local nb_pod="ovsdbserver-nb-0"
     if /usr/bin/oc -n "${OSP_NS}" get pod "${nb_pod}" &>/dev/null; then
         echo "Copying OVN NB database from ${nb_pod}"
-        run_bg /usr/bin/oc cp -n "${OSP_NS}" "${nb_pod}:/etc/ovn/ovnnb_db.db" "${OVN_PATH}/ovnnb_db.db"
+        run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc cp -n "${OSP_NS}" "${nb_pod}:/etc/ovn/ovnnb_db.db" "${OVN_PATH}/ovnnb_db.db"
     else
         echo "Pod ${nb_pod} not found in namespace ${OSP_NS}, skipping OVN NB database collection"
     fi
@@ -275,7 +275,7 @@ get_ovn_status() {
     local sb_pod="ovsdbserver-sb-0"
     if /usr/bin/oc -n "${OSP_NS}" get pod "${sb_pod}" &>/dev/null; then
         echo "Copying OVN SB database from ${sb_pod}"
-        run_bg /usr/bin/oc cp -n "${OSP_NS}" "${sb_pod}:/etc/ovn/ovnsb_db.db" "${OVN_PATH}/ovnsb_db.db"
+        run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc cp -n "${OSP_NS}" "${sb_pod}:/etc/ovn/ovnsb_db.db" "${OVN_PATH}/ovnsb_db.db"
     else
         echo "Pod ${sb_pod} not found in namespace ${OSP_NS}, skipping OVN SB database collection"
     fi
@@ -291,10 +291,10 @@ get_ovn_status() {
         echo "Collecting cluster status from NB pod: $pod"
         # Try /etc/ovn first, fallback to /tmp for backward compatibility
         nb_ctl_path="/etc/ovn/ovnnb_db.ctl"
-        if ! /usr/bin/oc -n "${OSP_NS}" rsh "$pod" test -S "$nb_ctl_path" 2>/dev/null; then
+        if ! run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n "${OSP_NS}" rsh "$pod" test -S "$nb_ctl_path" 2>/dev/null; then
             nb_ctl_path="/tmp/ovnnb_db.ctl"
         fi
-        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t "$nb_ctl_path" cluster/status OVN_Northbound > "${OVN_PATH}/cluster-status/nb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from NB pod: $pod"
+        run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t "$nb_ctl_path" cluster/status OVN_Northbound > "${OVN_PATH}/cluster-status/nb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from NB pod: $pod"
     done
 
     # Collect cluster status from all OVN SB pods
@@ -302,10 +302,10 @@ get_ovn_status() {
         echo "Collecting cluster status from SB pod: $pod"
         # Try /etc/ovn first, fallback to /tmp for backward compatibility
         sb_ctl_path="/etc/ovn/ovnsb_db.ctl"
-        if ! /usr/bin/oc -n "${OSP_NS}" rsh "$pod" test -S "$sb_ctl_path" 2>/dev/null; then
+        if ! run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n "${OSP_NS}" rsh "$pod" test -S "$sb_ctl_path" 2>/dev/null; then
             sb_ctl_path="/tmp/ovnsb_db.ctl"
         fi
-        run_bg /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t "$sb_ctl_path" cluster/status OVN_Southbound > "${OVN_PATH}/cluster-status/sb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from SB pod: $pod"
+        run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n "${OSP_NS}" rsh "$pod" ovn-appctl -t "$sb_ctl_path" cluster/status OVN_Southbound > "${OVN_PATH}/cluster-status/sb/${pod}.txt" 2>/dev/null || echo "Failed to collect status from SB pod: $pod"
     done
 }
 

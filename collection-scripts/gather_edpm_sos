@@ -55,7 +55,7 @@ if [[ -n "$SOS_EDPM_PLUGINS" ]]; then
 fi
 
 SSH () {
-    ssh -n -i "$key_path" "${username}@${address}" -o StrictHostKeyChecking=accept-new "$@"
+    run_with_timeout "$SOS_CMD_TIMEOUT" ssh -n -i "$key_path" "${username}@${address}" -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 "$@"
 }
 
 gather_edpm_sos () {
