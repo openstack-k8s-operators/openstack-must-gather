@@ -8,9 +8,8 @@ export OMC=${OMC:-true}
 export OSP_NS="${OSP_NS-openstack}"
 export OSP_OPERATORS_NS="${OSP_OPERATORS_NS-openstack-operators}"
 
-# This option is used for CI purposes and
-# is enabled by default
-export SOS_DECOMPRESS=${SOS_DECOMPRESS:-1}
+# This option is used for CI purposes and is disabled by default
+export SOS_DECOMPRESS=${SOS_DECOMPRESS:-0}
 export BASE_COLLECTION_PATH="${BASE_COLLECTION_PATH:-/must-gather}"
 export SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
 export SOS_PATH_NODES="${SOS_PATH}/_all_nodes"
@@ -97,6 +96,66 @@ declare -a OSP_SERVICES=(
 )
 export OSP_SERVICES
 
+
+# Archive the collected data into a single downloadable file.
+# When SOS_DECOMPRESS=0, SOS reports are kept as .tar.xz archives and
+# recompressing them with XZ produces no size reduction while adding
+# significant time. In that case, non-SOS data is compressed separately
+# into an intermediate XZ archive, then bundled with the already-compressed
+# SOS files into a plain tar.
+# Otherwise (SOS_DECOMPRESS=1 or no SOS reports), a single XZ pass over
+# everything is used.
+function compress {
+    # The path to store the compressed result
+    local compressed_path=${COMPRESSED_PATH:-"${BASE_COLLECTION_PATH}"}
+    # whether to delete or keep the uncompressed files.
+    # Defaults to keep them.
+    local delete_after=${DELETE_AFTER_COMPRESSION:-0}
+    local archive
+
+    if [[ ${SOS_DECOMPRESS} -eq 0 ]] && \
+       [[ -n "$(find "${SOS_PATH}" -type f 2>/dev/null | head -1)" ]]; then
+        archive="${compressed_path}/must-gather.tar"
+        local rhoso_archive="${compressed_path}/rhoso-data.tar.xz"
+
+        # Compress only non-SOS data (CRDs, CMs, logs, DB dumps) into an
+        # intermediate XZ archive, excluding the SOS directory entirely.
+        tar \
+            --exclude='must-gather.tar' \
+            --exclude='rhoso-data.tar.xz' \
+            --exclude='sos-reports' \
+            --warning=no-file-changed --ignore-failed \
+            -cJf \
+            "${rhoso_archive}" "${BASE_COLLECTION_PATH}" || true
+
+        # Bundle the intermediate archive with the SOS reports into a plain
+        # tar (no compression) so already-compressed SOS data is not re-processed.
+        tar \
+            --exclude='must-gather.tar' \
+            --warning=no-file-changed --ignore-failed \
+            -cf \
+            "${archive}" "${rhoso_archive}" "${SOS_PATH}" || true
+
+        rm -f "${rhoso_archive}"
+    else
+        archive="${compressed_path}/must-gather.tar.xz"
+
+        tar \
+            --exclude='must-gather.tar.xz' \
+            --warning=no-file-changed --ignore-failed \
+            -cJf \
+            "${archive}" "${BASE_COLLECTION_PATH}" || true
+    fi
+
+    echo "The ${archive} now can be attached to the support case."
+
+    if [[ ${delete_after} -eq 1 ]]; then
+        find "${BASE_COLLECTION_PATH}" \
+            -mindepth 1 \
+            -not -path "*must-gather.tar*" \
+            -delete
+    fi
+}
 
 WEBHOOKS_COLLECTION_PATH=${BASE_COLLECTION_PATH}/webhooks
 export WEBHOOKS_COLLECTION_PATH
