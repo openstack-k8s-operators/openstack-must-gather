@@ -14,10 +14,9 @@ from pathlib import Path
 
 # Import mask module for applying masking
 try:
-    from mask import mask_resource
+    from mask import mask_data
 except ImportError:
-    # Fallback if mask module not found
-    mask_resource = None
+    mask_data = None
 
 
 def split_configmaps(input_file, output_dir='configmaps', apply_mask=False):
@@ -50,6 +49,9 @@ def split_configmaps(input_file, output_dir='configmaps', apply_mask=False):
     configmaps = data.get('items', [])
     created_files = []
 
+    total = len(configmaps)
+    print(f"Processing {total} ConfigMaps from {input_file}", flush=True)
+
     # Process each ConfigMap
     for i, cm in enumerate(configmaps, 1):
         # Extract metadata
@@ -60,21 +62,20 @@ def split_configmaps(input_file, output_dir='configmaps', apply_mask=False):
         filename = f"{name}.yaml"
         filepath = output_path / filename
 
-        # Write the ConfigMap to its own file
-        with open(filepath, 'w') as f:
-            yaml.dump(cm, f, default_flow_style=False, sort_keys=False)
+        print(f"  [{i}/{total}] {name}", flush=True)
+
+        if apply_mask and mask_data:
+            try:
+                mask_data(cm, str(filepath))
+            except Exception as e:
+                print(f"Warning: Could not mask {filepath}: {e}")
+        elif apply_mask and not mask_data:
+            print(f"Warning: Masking requested but mask module not available")
+        else:
+            with open(filepath, 'w') as f:
+                yaml.dump(cm, f, default_flow_style=False, sort_keys=False)
 
         created_files.append(str(filepath))
-
-    # Apply masking if requested and mask_resource is available
-    if apply_mask and mask_resource:
-        for file_path in created_files:
-            try:
-                mask_resource(file_path)
-            except Exception as e:
-                print(f"Warning: Could not mask {file_path}: {e}")
-    elif apply_mask and not mask_resource:
-        print("Warning: Masking requested but mask module not available")
 
     return created_files
 

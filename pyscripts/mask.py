@@ -292,6 +292,8 @@ class PlaintextMask():
         """
         if isinstance(obj, dict):
             for key, value in obj.items():
+                if key == "binaryData":
+                    continue
                 if isinstance(value, str):
                     # If key name matches sensitive pattern and value is single-line, fully mask
                     # This catches: password: secret123, transport_url: mysql://..., etc.
@@ -335,6 +337,20 @@ def get_resource_kind(path: str) -> Optional[str]:
     except (FileNotFoundError, yaml.YAMLError) as e:
         print(f"Error while reading YAML to determine kind: {e}")
     return None
+
+
+def mask_data(data: Dict[str, Any], path: str) -> bool:
+    """
+    Mask an already-parsed resource dict and write the result to path.
+    Avoids a redundant YAML load when the caller already has the data
+    in memory (e.g. after splitting a ConfigMapList).
+    """
+    if not data:
+        return True
+    m = PlaintextMask(path)
+    m._applyMaskRecursive(data)
+    m._writeYaml(data)
+    return True
 
 
 def mask_resource(path: str, dump_conf: bool = False) -> bool:
