@@ -155,12 +155,12 @@ function collect_omc_inspect {
     local all_crds=()
     mapfile -t all_crds < <(get_matching_crds)
     if [[ ${#all_crds[@]} -gt 0 ]]; then
-        oc adm inspect crd "${all_crds[@]}" --dest-dir="${BASE_COLLECTION_PATH}" &
+        run_bg oc adm inspect crd "${all_crds[@]}" --dest-dir="${BASE_COLLECTION_PATH}"
     fi
     # Collect namespaced resources
     for ns in "${DEFAULT_NAMESPACES[@]}"; do
         if check_namespace "$ns"; then
-            run_bg oc adm inspect -n "$ns" ns/"$ns" --dest-dir="${BASE_COLLECTION_PATH}" &
+            run_bg oc adm inspect -n "$ns" ns/"$ns" --dest-dir="${BASE_COLLECTION_PATH}"
             # Collect subscriptions, CSVs, installplans
             if oc -n "$ns" get subscriptions &>/dev/null; then
                 run_bg oc adm inspect subscriptions -n "$ns" --dest-dir="${BASE_COLLECTION_PATH}"
