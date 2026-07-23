@@ -17,12 +17,12 @@ function dump_db {
     local dbname="$3"
     local dump="${3:-openstack_databases}"
     # skip the service db dump if it does not exist on the current $dbpod
-    if ! /usr/bin/oc exec -n "$ns" "$dbpod" -- mysql -u root -e "USE $dbname;" 2>/dev/null; then
+    if ! run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc exec -n "$ns" "$dbpod" -- mysql -u root -e "USE $dbname;" 2>/dev/null; then
         echo "Database $dbname does not exist on $dbpod, skipping"
         return
     fi
     # database dump in dbs/<namespace>/<galera_pod>-<service>.sql path
-    run_bg /usr/bin/oc -n $ns rsh -c galera $dbpod mysqldump -uroot $DB_OPT $dbname > "$DB_DUMP"/"$ns"/$dbpod-$dump.sql
+    run_bg run_with_timeout "$CMD_TIMEOUT" /usr/bin/oc -n $ns rsh -c galera $dbpod mysqldump -uroot $DB_OPT $dbname > "$DB_DUMP"/"$ns"/$dbpod-$dump.sql
 }
 
 # Select the (first) galera pod for each deployment, and exclude gallera-cellX
