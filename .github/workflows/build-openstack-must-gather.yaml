@@ -40,7 +40,7 @@ jobs:
 
     - name: Buildah Action
       id: build-openstack-must-gather
-      uses: redhat-actions/buildah-build@7a95fa7ee0f02d552a32753e7414641a04307056 # v2
+      uses: redhat-actions/buildah-build@3a51aade9afa17e5c78256bcbe2e1ee08c7b995b # v3
       with:
         image: openstack-must-gather
         tags: ${{ env.latesttag }} ${{ github.sha }}
@@ -48,7 +48,7 @@ jobs:
           ./Dockerfile
 
     - name: Push openstack-must-gather image To ${{ env.imageregistry }}
-      uses: redhat-actions/push-to-registry@5ed88d269cf581ea9ef6dd6806d01562096bee9c # v2
+      uses: redhat-actions/push-to-registry@94ade333c38ecc0e60e94785125d9a52ca423b37 # v3
       with:
         image: ${{ steps.build-openstack-must-gather.outputs.image }}
         tags: ${{ steps.build-openstack-must-gather.outputs.tags }}
