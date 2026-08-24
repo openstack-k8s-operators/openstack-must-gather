@@ -74,7 +74,7 @@ gather_node_sos () {
     # - Ignore errors on tar since it fails if logs are added while doing the tar as well as if a file doesn't exist
     #   (because the glob has no data or because the file was removed by the log rotation mechanism)
     # - Build LOGS env var to pass tar based on existing files, as tar fails when run with glob that produces no files
-    oc debug "node/$node" -- chroot /host bash \
+    run_with_timeout "$SOS_CMD_TIMEOUT" oc debug "node/$node" -- chroot /host bash \
       -c "echo 'TOOLBOX_NAME=toolbox-osp' > /root/.toolboxrc ; \
           rm -rf \"${TMPDIR}\" && \
           mkdir -p \"${TMPDIR}\" && \
@@ -92,7 +92,7 @@ gather_node_sos () {
     # Wait until we know for sure the debug pod is gone, this is to try to
     # workaround the following failure:
     #   Error from server (BadRequest): container "container-00" in pod debug is waiting to start: ContainerCreating
-    while oc get pod "${node}-debug" 1>/dev/null 2>&1 1>/dev/; do
+    while oc get pod "${node}-debug" 1>/dev/null 2>&1; do
         sleep 1
     done
     sleep 1
@@ -106,7 +106,7 @@ gather_node_sos () {
     sos_file="${SOS_PATH_NODES}/sosreport-$node-UntarWithArg-i.tar.xz"
     download_logs="${SOS_PATH_NODES}/sosreport-$node.tar.xz-download.logs"
     # Add "--loglevel 6" to help debug in case there's a failure
-    oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" 2> "${download_logs}" 1> "${sos_file}"
+    run_with_timeout "$SOS_CMD_TIMEOUT" oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" 2> "${download_logs}" 1> "${sos_file}"
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
@@ -129,7 +129,7 @@ gather_node_sos () {
 
     sleep 1
     # Delete the tar.xz file from the remote node
-    oc debug "node/$node" -- chroot /host bash -c "rm -rf $TMPDIR"
+    run_with_timeout "$CMD_TIMEOUT" oc debug "node/$node" -- chroot /host bash -c "rm -rf $TMPDIR"
 }
 
 

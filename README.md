@@ -103,6 +103,12 @@ This is the list of available environmental variables:
   gathered data.
 - `DELETE_AFTER_COMPRESSION`: 0 or 1. When set to 1 the uncompressed data is
   deleted after the archive is created. Defaulted to 0.
+- `CMD_TIMEOUT`: Timeout in seconds for general remote-execution commands
+  (`oc rsh`, `oc exec`, `oc cp`, openstack CLI). Prevents individual commands
+  from hanging indefinitely. Defaults to `120`.
+- `SOS_CMD_TIMEOUT`: Timeout in seconds for SOS report generation and download
+  via `oc debug` or SSH. These operations are legitimately slow, so the default
+  is higher. Defaults to `600`.
 - `SUPPORT_TOOLS`: The OpenShift support-tools container image. It allows to
   override the image location for disconnected environments.
 - `OMC`: Controls the directory structure format. Set to `false` to use the legacy
