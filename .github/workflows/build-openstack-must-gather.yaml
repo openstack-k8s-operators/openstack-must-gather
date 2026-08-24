@@ -29,7 +29,7 @@ jobs:
     if: needs.check-secrets.outputs.have-secrets == 'true'
 
     steps:
-    - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
     - name: Set latest tag for non main branch
       if: github.ref_name != 'main'
@@ -40,7 +40,7 @@ jobs:
 
     - name: Buildah Action
       id: build-openstack-must-gather
-      uses: redhat-actions/buildah-build@3a51aade9afa17e5c78256bcbe2e1ee08c7b995b # v3
+      uses: redhat-actions/buildah-build@719e3c40d8af9790c23eca13f7daa339f2867034 # v3
       with:
         image: openstack-must-gather
         tags: ${{ env.latesttag }} ${{ github.sha }}
