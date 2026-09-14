@@ -74,6 +74,15 @@ This is the list of available environmental variables:
 - `SOS_ONLY_PLUGINS`: List of SOS report plugins to use. Empty string to run
   them all. Defaults to: `block,cifs,crio,devicemapper,devices,iscsi,lvm2,
   memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev`.
+- `SOS_COLLECT_ROTATED_POD_LOGS`: 0 or 1. When set to 1, `container_log` is
+  appended to `SOS_ONLY_PLUGINS` and run with `-k container_log.rotated=on`, so
+  the OpenShift node SOS reports also contain the rotated pod logs from
+  `/var/log/pods`. Defaults to 0, since these logs are sizeable and are only
+  needed when the investigation has to go further back than the log content
+  returned by `oc logs`. Note that `oc logs` only serves the current log file of
+  a running container (and, with `--previous`, the preceding container
+  instance), so anything already rotated away by the kubelet is available
+  *only* through this option.
 - `SOS_EDPM`: Comma separated list of edpm nodes to gather SOS reports from,
   empty string skips sos report gathering. Accepts keyword all to gather all
   nodes. eg: `edpm-compute-0,edpm-compute-1`

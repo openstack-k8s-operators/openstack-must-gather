@@ -10,6 +10,7 @@ fi
 
 function rotated_logs_symlinks {
     [[ ${SOS_DECOMPRESS} -ne 1 ]] && return
+    [[ "${SOS_COLLECT_ROTATED_POD_LOGS}" != "1" ]] && return
 
     for filename_dest in "${NAMESPACE_PATH}"/*/pods/*; do
         # If file not found we get the glob string itself, so ignore it
