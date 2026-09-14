@@ -10,6 +10,7 @@ export OSP_OPERATORS_NS="${OSP_OPERATORS_NS-openstack-operators}"
 
 # This option is used for CI purposes and is disabled by default
 export SOS_DECOMPRESS=${SOS_DECOMPRESS:-0}
+export SOS_COLLECT_ROTATED_POD_LOGS=${SOS_COLLECT_ROTATED_POD_LOGS:-0}
 export BASE_COLLECTION_PATH="${BASE_COLLECTION_PATH:-/must-gather}"
 export SOS_PATH="${BASE_COLLECTION_PATH}/sos-reports"
 export SOS_PATH_NODES="${SOS_PATH}/_all_nodes"
