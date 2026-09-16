@@ -13,7 +13,12 @@
 #                     scsi,udev,openstack_edpm
 
 #   SOS_DECOMPRESS: bool to disable decompressing sos reports. Set to 0 to disable
-#                   or set to 1 to enable. Defaults to 1
+#                   or set to 1 to enable. Defaults to 0
+#
+#   SOS_COLLECT_ROTATED_POD_LOGS: bool to collect rotated pod logs from
+#                                 /var/log/pods. Set to 1 to append sos' own
+#                                 container_log plugin to SOS_ONLY_PLUGINS and
+#                                 turn its "rotated" option on. Defaults to 0.
 #
 # TODO: Confirm with GSS the default for SOS_ONLY_PLUGINS
 
@@ -44,6 +49,17 @@ fi
 
 # Default to some plugins if SOS_ONLY_PLUGINS is not set
 SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS-block,cifs,crio,devicemapper,devices,firewall_tables,firewalld,iscsi,lvm2,memory,multipath,nfs,nis,nvme,podman,process,processor,selinux,scsi,udev,logs,crypto}"
+
+# Rotated pod logs under /var/log/pods are gathered by sos itself through the
+# container_log plugin, so we only have to enable it and turn its "rotated"
+# option on. An empty SOS_ONLY_PLUGINS means "run every plugin", in which case
+# container_log is already enabled and there is nothing to append.
+SOS_PLUGIN_OPTS=""
+if [[ "${SOS_COLLECT_ROTATED_POD_LOGS}" == "1" ]]; then
+    [[ -n "$SOS_ONLY_PLUGINS" ]] && SOS_ONLY_PLUGINS="${SOS_ONLY_PLUGINS},container_log"
+    SOS_PLUGIN_OPTS="-k container_log.rotated=on"
+fi
+
 if [[ -n "$SOS_ONLY_PLUGINS" ]]; then
     SOS_LIMIT="--only-plugins $SOS_ONLY_PLUGINS"
 fi
@@ -65,23 +81,17 @@ gather_node_sos () {
     #   next toolbox [2] that may no longer be the case.
     #   [1]: https://github.com/coreos/toolbox/blob/9a7c840fb4881f406287bf29e5f35b6625c7b358/rhcos-toolbox#L37
     #   [2]: https://github.com/coreos/toolbox/issues/60
-    # - Use 2 tar files instead of 1 since tar's "-n --concatenate" and "--append" don't support compressed files
-    # - Use tar's transform when adding rotated logs from /var/log/pods so "var" is not removed when untaring with
-    #   --strip-components
-    #   To avoid performance penalty we don't look for the real directory name using:
-    #     $(tar --exclude='*/*' -tf "${FILENAME}" | head -n1)
-    #   Instead we use a fake podlogs top directory
-    # - Ignore errors on tar since it fails if logs are added while doing the tar as well as if a file doesn't exist
-    #   (because the glob has no data or because the file was removed by the log rotation mechanism)
-    # - Build LOGS env var to pass tar based on existing files, as tar fails when run with glob that produces no files
+    # - Rotated logs from /var/log/pods used to be added as a second, hand rolled
+    #   tar concatenated to the sos report. sos gathers them itself via the
+    #   container_log plugin (see SOS_PLUGIN_OPTS above), so we produce a single
+    #   archive and let sos deal with files disappearing mid log rotation.
     oc debug "node/$node" -- chroot /host bash \
       -c "echo 'TOOLBOX_NAME=toolbox-osp' > /root/.toolboxrc ; \
           rm -rf \"${TMPDIR}\" && \
           mkdir -p \"${TMPDIR}\" && \
           sudo podman rm --force toolbox-osp;  \
           sudo --preserve-env podman pull --authfile /var/lib/kubelet/config.json $SUPPORT_TOOLS && \
-          toolbox sos report --batch --all-logs $SOS_LIMIT --tmp-dir=\"/host${TMPDIR}\" && \
-          if [[ \"\$(ls /var/log/pods/*/{*.log.*,*/*.log.*} 2>/dev/null)\" != '' ]]; then tar --ignore-failed-read --warning=no-file-changed -cJf \"${TMPDIR}/podlogs.tar.xz\" --transform 's,^,podlogs/,' /var/log/pods/*/{*.log.*,*/*.log.*} || true; fi"
+          toolbox sos report --batch --all-logs $SOS_LIMIT $SOS_PLUGIN_OPTS --tmp-dir=\"/host${TMPDIR}\""
 
     # shellcheck disable=SC2181
     if [ $? -ne 0 ]; then
@@ -102,8 +112,7 @@ gather_node_sos () {
     # Not decompressing at this stage outside of a CI environment would
     # require changes be made to the yank tool
     echo "Retrieving SOS Report for ${node}"
-    # Hint the need to use -i when using tar because there are 2 tars in a single file
-    sos_file="${SOS_PATH_NODES}/sosreport-$node-UntarWithArg-i.tar.xz"
+    sos_file="${SOS_PATH_NODES}/sosreport-$node.tar.xz"
     download_logs="${SOS_PATH_NODES}/sosreport-$node.tar.xz-download.logs"
     # Add "--loglevel 6" to help debug in case there's a failure
     oc debug --loglevel 6 "node/$node" -- bash -c "cat \"/host${TMPDIR}/\"*.tar.xz" 2> "${download_logs}" 1> "${sos_file}"
@@ -118,7 +127,7 @@ gather_node_sos () {
 
     # if we are decompressing the sos report, remove the original sos archive
     if [[ ${SOS_DECOMPRESS} -eq 1 ]]; then
-        if tar -i -C "${SOS_PATH_NODES}" --one-top-level="sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"; then
+        if tar -C "${SOS_PATH_NODES}" --one-top-level="sosreport-$node" --strip-components=1 --exclude='*/dev/null' -Jxf "${sos_file}"; then
             rm "${sos_file}"
             # Ensure write access to the sos reports directories so must-gather rsync doesn't fail
             chmod +w -R "${SOS_PATH_NODES}/sosreport-$node/"
