@@ -52,6 +52,9 @@ declare resources=(
     "certificaterequests"
     "imagestream"
     "poddisruptionbudgets"
+    "serviceaccounts"
+    "roles"
+    "rolebindings"
 )
 export resources
 

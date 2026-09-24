@@ -173,6 +173,16 @@ function collect_omc_inspect {
             if oc -n "$ns" get installplan &>/dev/null; then
                 run_bg oc adm inspect installplan -n "$ns" --dest-dir="${BASE_COLLECTION_PATH}"
             fi
+            # RBAC gathering: serviceaccounts, roles and rolebindings
+            if oc -n "$ns" get serviceaccounts &>/dev/null; then
+                run_bg oc adm inspect serviceaccounts -n "$ns" --dest-dir="${BASE_COLLECTION_PATH}"
+            fi
+            if oc -n "$ns" get roles &>/dev/null; then
+                run_bg oc adm inspect roles -n "$ns" --dest-dir="${BASE_COLLECTION_PATH}"
+            fi
+            if oc -n "$ns" get rolebindings &>/dev/null; then
+                run_bg oc adm inspect rolebindings -n "$ns" --dest-dir="${BASE_COLLECTION_PATH}"
+            fi
             # (Note): secrets are collected for each openstack service and
             # contain masked config files: this is not available in OMC mode
             # and we rely on the regular secrets retrieval and masking approach
