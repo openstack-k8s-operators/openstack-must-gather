@@ -1,6 +1,6 @@
-FROM quay.io/openshift/origin-must-gather:4.18.0 as builder
+FROM quay.io/openshift/origin-must-gather:4.22.0 as builder
 
-FROM quay.io/centos/centos:stream9
+FROM quay.io/centos/centos:stream10
 
 ARG OS_GIT_VERSION
 
