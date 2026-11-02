@@ -13,7 +13,7 @@ env:
 jobs:
 
   check-secrets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Check secrets are set
         id: have-secrets
@@ -24,7 +24,7 @@ jobs:
 
   build-openstack-must-gather:
     name: Build openstack-must-gather image using buildah
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [check-secrets]
     if: needs.check-secrets.outputs.have-secrets == 'true'
 
