@@ -207,7 +207,7 @@ get_ceilometer_status() {
 get_octavia_status() {
     local OCTAVIA_PATH="$BASE_COLLECTION_PATH/ctlplane/octavia"
     mkdir -p "$OCTAVIA_PATH"
-    resources="amphora availabilityzone availabilityzoneprofile flavor flavorprofile healthmonitor l7policy "
+    resources="availabilityzone availabilityzoneprofile flavor flavorprofile healthmonitor l7policy "
     resources="$resources listener pool provider quota"
 
     for r in $resources; do
@@ -215,6 +215,16 @@ get_octavia_status() {
     done;
 
     run_bg ${BASH_ALIASES[os]} loadbalancer provider list '>' "$OCTAVIA_PATH"/provider_list
+    run_bg ${BASH_ALIASES[os]} loadbalancer amphora list --long '>' "$OCTAVIA_PATH"/amphora_list
+    run_bg ${BASH_ALIASES[os]} loadbalancer list '>' "$OCTAVIA_PATH"/loadbalancer_list
+
+    POOLS=$(${BASH_ALIASES[os]} loadbalancer pool list -f value -c id)
+    if [[ -n "$POOLS" ]]; then
+        mkdir -p "$OCTAVIA_PATH"/member_list
+        for p in ${POOLS}; do
+            run_bg ${BASH_ALIASES[os]} loadbalancer member list "${p}" '>' "$OCTAVIA_PATH"/member_list/"${p}"
+        done
+    fi
 }
 
 # Glance service gathering - task
